@@ -182,16 +182,7 @@ export default function MaterialsPagePublic() {
             </div>
           )}
 
-          <div className="calc-banner">
-            <div>
-              <div className="cb-text">⚡ Тавилгынхаа материалыг тооцоо</div>
-              <div className="cb-sub">Хэмжээ оруулахад л бүх зүйлийг автоматаар бодно</div>
-            </div>
-            <button className="cb-btn" onClick={() => router.push('/calculate')}>
-              Тооцоолол хийх →
-            </button>
           </div>
-        </div>
       </div>
     </>
   );
