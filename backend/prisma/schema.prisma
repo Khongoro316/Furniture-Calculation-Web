@@ -1,0 +1,366 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model audit_logs {
+  id         BigInt   @id @default(autoincrement())
+  user_id    Int?
+  action     String   @db.VarChar(50)
+  table_name String   @db.VarChar(100)
+  record_id  Int?
+  old_data   String?  @db.Text
+  new_data   String?  @db.Text
+  ip_address String?  @db.VarChar(45)
+  created_at DateTime @default(now()) @db.DateTime(0)
+  users      users?   @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "audit_logs_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model calc_formulas {
+  id                Int             @id @default(autoincrement())
+  furniture_type_id Int
+  part_key          String          @db.VarChar(100)
+  part_label        String          @db.VarChar(200)
+  formula_width     String          @db.Text
+  formula_height    String          @db.Text
+  formula_qty       String          @db.Text
+  formula_edge      String?         @db.Text
+  has_edge          Boolean         @default(false)
+  sort_order        Int             @default(0)
+  furniture_types   furniture_types @relation(fields: [furniture_type_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "calc_formulas_ibfk_1")
+
+  @@unique([furniture_type_id, part_key], map: "furniture_type_id")
+}
+
+model calc_input_fields {
+  id                Int                          @id @default(autoincrement())
+  furniture_type_id Int
+  field_key         String                       @db.VarChar(100)
+  label             String                       @db.VarChar(200)
+  input_type        calc_input_fields_input_type @default(number)
+  unit              String?                      @db.VarChar(20)
+  min_value         Decimal?                     @db.Decimal(15, 4)
+  max_value         Decimal?                     @db.Decimal(15, 4)
+  default_value     Decimal?                     @db.Decimal(15, 4)
+  is_required       Boolean                      @default(true)
+  sort_order        Int                          @default(0)
+  options_json      String?                      @db.Text
+  furniture_types   furniture_types              @relation(fields: [furniture_type_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "calc_input_fields_ibfk_1")
+
+  @@unique([furniture_type_id, field_key], map: "furniture_type_id")
+}
+
+model calculation_parts {
+  id             Int          @id @default(autoincrement())
+  calculation_id Int
+  part_key       String       @db.VarChar(100)
+  part_label     String       @db.VarChar(200)
+  width_mm       Decimal      @db.Decimal(10, 2)
+  height_mm      Decimal      @db.Decimal(10, 2)
+  qty            Int          @default(1)
+  area_m2        Decimal      @db.Decimal(15, 6)
+  edge_length_m  Decimal      @default(0.0000) @db.Decimal(15, 4)
+  material_id    Int?
+  material_price Decimal      @default(0.00) @db.Decimal(15, 2)
+  subtotal       Decimal      @default(0.00) @db.Decimal(15, 2)
+  calculations   calculations @relation(fields: [calculation_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "calculation_parts_ibfk_1")
+  materials      materials?   @relation(fields: [material_id], references: [id], onUpdate: Restrict, map: "calculation_parts_ibfk_2")
+
+  @@index([calculation_id], map: "calculation_id")
+  @@index([material_id], map: "material_id")
+}
+
+model calculation_services {
+  id             Int          @id @default(autoincrement())
+  calculation_id Int
+  service_id     Int
+  qty            Decimal      @default(1.0000) @db.Decimal(15, 4)
+  unit_price     Decimal      @default(0.00) @db.Decimal(15, 2)
+  subtotal       Decimal      @default(0.00) @db.Decimal(15, 2)
+  calculations   calculations @relation(fields: [calculation_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "calculation_services_ibfk_1")
+  services       services     @relation(fields: [service_id], references: [id], onUpdate: Restrict, map: "calculation_services_ibfk_2")
+
+  @@index([calculation_id], map: "calculation_id")
+  @@index([service_id], map: "service_id")
+}
+
+model calculations {
+  id                   Int                    @id @default(autoincrement())
+  user_id              Int
+  furniture_type_id    Int
+  input_data           String                 @db.Text
+  total_area           Decimal?               @db.Decimal(15, 4)
+  total_area_real      Decimal?               @db.Decimal(15, 4)
+  total_edge           Decimal?               @db.Decimal(15, 4)
+  total_cost           Decimal?               @db.Decimal(15, 2)
+  is_saved             Boolean                @default(false)
+  created_at           DateTime               @default(now()) @db.DateTime(0)
+  calculation_parts    calculation_parts[]
+  calculation_services calculation_services[]
+  users                users                  @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "calculations_ibfk_1")
+  furniture_types      furniture_types        @relation(fields: [furniture_type_id], references: [id], onUpdate: Restrict, map: "calculations_ibfk_2")
+  orders               orders[]
+
+  @@index([furniture_type_id], map: "furniture_type_id")
+  @@index([user_id], map: "user_id")
+}
+
+model furniture_types {
+  id                Int                 @id @default(autoincrement())
+  name              String              @db.VarChar(200)
+  description       String?             @db.Text
+  is_active         Boolean             @default(true)
+  created_by        Int
+  created_at        DateTime            @default(now()) @db.DateTime(0)
+  calc_formulas     calc_formulas[]
+  calc_input_fields calc_input_fields[]
+  calculations      calculations[]
+  users             users               @relation(fields: [created_by], references: [id], onUpdate: Restrict, map: "furniture_types_ibfk_1")
+
+  @@index([created_by], map: "created_by")
+}
+
+model material_categories {
+  id             Int              @id @default(autoincrement())
+  name           String           @db.VarChar(200)
+  description    String?          @db.Text
+  is_active      Boolean          @default(true)
+  created_at     DateTime         @default(now()) @db.DateTime(0)
+  material_types material_types[]
+}
+
+model material_types {
+  id                  Int                 @id @default(autoincrement())
+  category_id         Int
+  name                String              @db.VarChar(200)
+  description         String?             @db.Text
+  is_active           Boolean             @default(true)
+  created_at          DateTime            @default(now()) @db.DateTime(0)
+  material_categories material_categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "material_types_ibfk_1")
+  materials           materials[]
+
+  @@index([category_id], map: "category_id")
+}
+
+model materials {
+  id                Int                 @id @default(autoincrement())
+  org_id            Int
+  type_id           Int
+  code              String              @db.VarChar(100)
+  name              String              @db.VarChar(300)
+  unit              String              @db.VarChar(20)
+  thickness         Decimal?            @db.Decimal(8, 2)
+  sheet_length      Decimal?            @db.Decimal(10, 2)
+  sheet_width       Decimal?            @db.Decimal(10, 2)
+  price             Decimal             @default(0.00) @db.Decimal(15, 2)
+  stock             Decimal             @default(0.0000) @db.Decimal(15, 4)
+  is_active         Boolean             @default(true)
+  created_by        Int
+  created_at        DateTime            @default(now()) @db.DateTime(0)
+  calculation_parts calculation_parts[]
+  organizations     organizations       @relation(fields: [org_id], references: [id], onUpdate: Restrict, map: "materials_ibfk_1")
+  material_types    material_types      @relation(fields: [type_id], references: [id], onUpdate: Restrict, map: "materials_ibfk_2")
+  users             users               @relation(fields: [created_by], references: [id], onUpdate: Restrict, map: "materials_ibfk_3")
+  order_items       order_items[]
+
+  @@unique([org_id, code], map: "org_id")
+  @@index([created_by], map: "created_by")
+  @@index([type_id], map: "type_id")
+}
+
+model order_items {
+  id          Int                   @id @default(autoincrement())
+  order_id    Int
+  item_type   order_items_item_type
+  material_id Int?
+  service_id  Int?
+  description String?               @db.VarChar(500)
+  qty         Decimal               @default(1.0000) @db.Decimal(15, 4)
+  unit        String?               @db.VarChar(20)
+  unit_price  Decimal               @default(0.00) @db.Decimal(15, 2)
+  subtotal    Decimal               @default(0.00) @db.Decimal(15, 2)
+  orders      orders                @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "order_items_ibfk_1")
+  materials   materials?            @relation(fields: [material_id], references: [id], onUpdate: Restrict, map: "order_items_ibfk_2")
+  services    services?             @relation(fields: [service_id], references: [id], onUpdate: Restrict, map: "order_items_ibfk_3")
+
+  @@index([material_id], map: "material_id")
+  @@index([order_id], map: "order_id")
+  @@index([service_id], map: "service_id")
+}
+
+model order_status_history {
+  id         Int      @id @default(autoincrement())
+  order_id   Int
+  old_status String?  @db.VarChar(50)
+  new_status String   @db.VarChar(50)
+  changed_by Int
+  note       String?  @db.Text
+  created_at DateTime @default(now()) @db.DateTime(0)
+  orders     orders   @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "order_status_history_ibfk_1")
+  users      users    @relation(fields: [changed_by], references: [id], onUpdate: Restrict, map: "order_status_history_ibfk_2")
+
+  @@index([changed_by], map: "changed_by")
+  @@index([order_id], map: "order_id")
+}
+
+model orders {
+  id                               Int                    @id @default(autoincrement())
+  order_no                         String                 @unique(map: "order_no") @db.VarChar(50)
+  user_id                          Int
+  calculation_id                   Int?
+  org_id                           Int
+  status                           orders_status          @default(pending)
+  assigned_to                      Int?
+  processed_by                     Int?
+  total_amount                     Decimal                @default(0.00) @db.Decimal(15, 2)
+  note                             String?                @db.Text
+  created_at                       DateTime               @default(now()) @db.DateTime(0)
+  order_items                      order_items[]
+  order_status_history             order_status_history[]
+  users_orders_user_idTousers      users                  @relation("orders_user_idTousers", fields: [user_id], references: [id], onUpdate: Restrict, map: "orders_ibfk_1")
+  calculations                     calculations?          @relation(fields: [calculation_id], references: [id], onUpdate: Restrict, map: "orders_ibfk_2")
+  organizations                    organizations          @relation(fields: [org_id], references: [id], onUpdate: Restrict, map: "orders_ibfk_3")
+  users_orders_assigned_toTousers  users?                 @relation("orders_assigned_toTousers", fields: [assigned_to], references: [id], onUpdate: Restrict, map: "orders_ibfk_4")
+  users_orders_processed_byTousers users?                 @relation("orders_processed_byTousers", fields: [processed_by], references: [id], onUpdate: Restrict, map: "orders_ibfk_5")
+  payments                         payments[]
+
+  @@index([assigned_to], map: "assigned_to")
+  @@index([calculation_id], map: "calculation_id")
+  @@index([org_id], map: "org_id")
+  @@index([processed_by], map: "processed_by")
+  @@index([user_id], map: "user_id")
+}
+
+model organizations {
+  id         Int         @id @default(autoincrement())
+  name       String      @db.VarChar(200)
+  phone      String?     @db.VarChar(20)
+  address    String?     @db.VarChar(500)
+  is_active  Boolean     @default(true)
+  created_at DateTime    @default(now()) @db.DateTime(0)
+  materials  materials[]
+  orders     orders[]
+  services   services[]
+  users      users[]
+}
+
+model payments {
+  id             Int             @id @default(autoincrement())
+  order_id       Int
+  amount         Decimal         @db.Decimal(15, 2)
+  method         payments_method
+  status         payments_status @default(pending)
+  transaction_id String?         @db.VarChar(200)
+  paid_at        DateTime?       @db.DateTime(0)
+  created_at     DateTime        @default(now()) @db.DateTime(0)
+  orders         orders          @relation(fields: [order_id], references: [id], onUpdate: Restrict, map: "payments_ibfk_1")
+
+  @@index([order_id], map: "order_id")
+}
+
+model service_types {
+  id          Int        @id @default(autoincrement())
+  name        String     @db.VarChar(200)
+  description String?    @db.Text
+  is_active   Boolean    @default(true)
+  created_at  DateTime   @default(now()) @db.DateTime(0)
+  services    services[]
+}
+
+model services {
+  id                   Int                    @id @default(autoincrement())
+  org_id               Int
+  service_type_id      Int
+  name                 String                 @db.VarChar(300)
+  unit                 String                 @db.VarChar(20)
+  price                Decimal                @default(0.00) @db.Decimal(15, 2)
+  description          String?                @db.Text
+  is_active            Boolean                @default(true)
+  created_by           Int
+  created_at           DateTime               @default(now()) @db.DateTime(0)
+  calculation_services calculation_services[]
+  order_items          order_items[]
+  organizations        organizations          @relation(fields: [org_id], references: [id], onUpdate: Restrict, map: "services_ibfk_1")
+  service_types        service_types          @relation(fields: [service_type_id], references: [id], onUpdate: Restrict, map: "services_ibfk_2")
+  users                users                  @relation(fields: [created_by], references: [id], onUpdate: Restrict, map: "services_ibfk_3")
+
+  @@index([created_by], map: "created_by")
+  @@index([org_id], map: "org_id")
+  @@index([service_type_id], map: "service_type_id")
+}
+
+model users {
+  id                                Int                    @id @default(autoincrement())
+  org_id                            Int?
+  first_name                        String                 @db.VarChar(100)
+  last_name                         String                 @db.VarChar(100)
+  email                             String                 @unique(map: "email") @db.VarChar(200)
+  password_hash                     String                 @db.VarChar(255)
+  role                              users_role             @default(customer)
+  phone                             String?                @db.VarChar(20)
+  is_active                         Boolean                @default(true)
+  created_at                        DateTime               @default(now()) @db.DateTime(0)
+  audit_logs                        audit_logs[]
+  calculations                      calculations[]
+  furniture_types                   furniture_types[]
+  materials                         materials[]
+  order_status_history              order_status_history[]
+  orders_orders_user_idTousers      orders[]               @relation("orders_user_idTousers")
+  orders_orders_assigned_toTousers  orders[]               @relation("orders_assigned_toTousers")
+  orders_orders_processed_byTousers orders[]               @relation("orders_processed_byTousers")
+  services                          services[]
+  organizations                     organizations?         @relation(fields: [org_id], references: [id], onUpdate: Restrict, map: "users_ibfk_1")
+
+  @@index([org_id], map: "org_id")
+}
+
+enum order_items_item_type {
+  material
+  service
+}
+
+enum payments_method {
+  qpay
+  card
+  cash
+  transfer
+}
+
+enum calc_input_fields_input_type {
+  number
+  select
+  checkbox
+}
+
+enum payments_status {
+  pending
+  paid
+  refunded
+  failed
+}
+
+enum orders_status {
+  pending
+  confirmed
+  assigned
+  in_progress
+  done
+  cancelled
+}
+
+enum users_role {
+  super_admin
+  admin
+  accountant
+  order_processor
+  worker
+  customer
+  guest
+}
