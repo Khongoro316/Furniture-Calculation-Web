@@ -277,11 +277,6 @@ export default function LandingPage() {
             </button>
 
             {/* Материал товч — хоёуланд */}
-            <button className="h-btn" onClick={() => router.push('/materials-page')}>
-              <span className="h-btn-icon">🪵</span>
-              <span className="h-btn-label">Материал</span>
-            </button>
-
             {authUser ? (
               <>
                 {/* Сагс */}
@@ -502,7 +497,7 @@ export default function LandingPage() {
           </div>
           <div className="prod-grid">
             {featMat.map(m => (
-              <div key={m.id} className="prod-card" onClick={() => router.push('/materials-page')}>
+              <div key={m.id} className="prod-card" onClick={() => router.push('/materials-page/${material.id')}>
                 <div className="prod-img">
                   <span>{m.img}</span>
                   {m.isNew && <span className="prod-badge badge-new">ШИНЭ</span>}
@@ -518,7 +513,6 @@ export default function LandingPage() {
                       {m.oldPrice && <span className="prod-old">₮{(m.oldPrice as number).toLocaleString()}</span>}
                       <span className="prod-unit">/ {m.unit}</span>
                     </div>
-                    <button className="prod-cart" onClick={e => { e.stopPropagation(); router.push('/materials-page'); }}>🛒</button>
                   </div>
                 </div>
               </div>
@@ -534,7 +528,9 @@ export default function LandingPage() {
           </div>
           <div className="prod-grid">
             {newMat.map(m => (
-              <div key={m.id} className="prod-card" onClick={() => router.push('/materials-page')}>
+              <div key={m.id} className="prod-card" onClick={() => router.push('/materials-page/${material.id}')}>
+                {/* Материал товч */}
+
                 <div className="prod-img">
                   <span>{m.img}</span>
                   <span className="prod-badge badge-new">ШИНЭ</span>
@@ -548,7 +544,6 @@ export default function LandingPage() {
                       <span className="prod-price">₮{m.price.toLocaleString()}</span>
                       <span className="prod-unit">/ {m.unit}</span>
                     </div>
-                    <button className="prod-cart">🛒</button>
                   </div>
                 </div>
               </div>

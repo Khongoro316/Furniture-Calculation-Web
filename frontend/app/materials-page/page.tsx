@@ -22,17 +22,25 @@ export default function MaterialsPagePublic() {
 
   useEffect(() => {
     const u = localStorage.getItem('user');
-    if (u) try { setAuthUser(JSON.parse(u)); } catch {}
+    if (u) {
+      try {
+        setAuthUser(JSON.parse(u));
+      } catch {}
+    }
   }, []);
 
   const cats = ['Бүгд', ...Array.from(new Set(MATERIALS.map(m => m.cat)))];
 
   let filtered = MATERIALS
     .filter(m => activeCat === 'Бүгд' || m.cat === activeCat)
-    .filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase()) || m.code.toLowerCase().includes(search.toLowerCase()));
+    .filter(m =>
+      !search ||
+      m.name.toLowerCase().includes(search.toLowerCase()) ||
+      m.code.toLowerCase().includes(search.toLowerCase())
+    );
 
-  if (sortBy === 'price-asc') filtered = [...filtered].sort((a,b) => a.price - b.price);
-  if (sortBy === 'price-desc') filtered = [...filtered].sort((a,b) => b.price - a.price);
+  if (sortBy === 'price-asc') filtered = [...filtered].sort((a, b) => a.price - b.price);
+  if (sortBy === 'price-desc') filtered = [...filtered].sort((a, b) => b.price - a.price);
   if (sortBy === 'new') filtered = [...filtered].filter(m => m.isNew);
 
   return (
@@ -76,13 +84,8 @@ export default function MaterialsPagePublic() {
         .prod-old{font-size:11px;color:#9ca3af;text-decoration:line-through;margin-left:4px}
         .prod-unit{font-size:11px;color:#9ca3af}
         .prod-stock{font-size:10px;font-weight:700;padding:3px 8px;border-radius:100px}
-        .calc-banner{background:linear-gradient(135deg,#d97706,#b45309);border-radius:16px;padding:24px 28px;margin-top:32px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-        .cb-text{font-size:16px;font-weight:700;color:white}
-        .cb-sub{font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px}
-        .cb-btn{background:white;color:#d97706;border:none;border-radius:10px;padding:12px 24px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.2s}
-        .cb-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,0.15)}
         .empty{text-align:center;padding:60px 0;color:#9ca3af}
-        @media(max-width:600px){.controls{flex-direction:column}.prod-grid{grid-template-columns:1fr 1fr}.calc-banner{flex-direction:column;text-align:center}}
+        @media(max-width:600px){.controls{flex-direction:column}.prod-grid{grid-template-columns:1fr 1fr}}
       `}</style>
 
       <div className="page">
@@ -92,13 +95,15 @@ export default function MaterialsPagePublic() {
             <span style={{ color:'#e5e7eb' }}>|</span>
             <span style={{ fontSize:14, fontWeight:700, color:'#1c1917' }}>🪵 Материалын сан</span>
           </div>
+
           <div style={{ display:'flex', gap:8 }}>
             <button
-              onClick={() => router.push('/calculate')}
-              style={{ background:'linear-gradient(135deg,#d97706,#b45309)', color:'white', border:'none', borderRadius:9, padding:'7px 16px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}
+              onClick={() => router.push('/cart')}
+              style={{ background:'#f5f5f7', color:'#374151', border:'none', borderRadius:9, padding:'7px 16px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}
             >
-              ⚡ Тооцоолол хийх
+              🛒 Сагс
             </button>
+
             {authUser ? (
               <button
                 onClick={() => router.push('/profile')}
@@ -129,6 +134,7 @@ export default function MaterialsPagePublic() {
               <span style={{ fontSize:15, color:'#9ca3af' }}>🔍</span>
               <input placeholder="Нэр, код хайх..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
+
             <select className="sort-sel" value={sortBy} onChange={e => setSortBy(e.target.value)}>
               <option value="default">Эрэмбэлэх</option>
               <option value="price-asc">Үнэ: бага → их</option>
@@ -139,7 +145,9 @@ export default function MaterialsPagePublic() {
 
           <div className="cat-filter">
             {cats.map(c => (
-              <button key={c} className={`cf ${activeCat === c ? 'on' : ''}`} onClick={() => setActiveCat(c)}>{c}</button>
+              <button key={c} className={`cf ${activeCat === c ? 'on' : ''}`} onClick={() => setActiveCat(c)}>
+                {c}
+              </button>
             ))}
           </div>
 
@@ -149,30 +157,43 @@ export default function MaterialsPagePublic() {
             <div className="empty">
               <div style={{ fontSize:40, marginBottom:12 }}>🔍</div>
               <div style={{ fontSize:15, fontWeight:600, color:'#374151', marginBottom:6 }}>Материал олдсонгүй</div>
-              <div style={{ fontSize:13 }}>Хайлтаа өөрчилнэ үү</div>
+              <div style={{ fontSize:13 }}>Хайлтаа өөрчилнө үү</div>
             </div>
           ) : (
             <div className="prod-grid">
               {filtered.map(m => (
-                <div key={m.id} className="prod-card">
+                <div
+                  key={m.id}
+                  className="prod-card"
+                  onClick={() => router.push(`/materials-page/${m.id}`)}
+                >
                   <div className="prod-img">
                     <span>{m.img}</span>
                     {m.isNew && <span className="prod-badge badge-new">ШИНЭ</span>}
                     {m.oldPrice && <span className="prod-badge badge-sale" style={{ left:'auto', right:10 }}>ХЯМДРАЛ</span>}
                   </div>
+
                   <div className="prod-body">
                     <div className="prod-code">{m.code}</div>
                     <div className="prod-name">{m.name}</div>
                     <div className="prod-meta">{m.cat} · {m.type} {m.thick !== '—' ? `· ${m.thick}` : ''}</div>
+
                     <div className="prod-bottom">
                       <div>
                         <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
                           <span className="prod-price">₮{m.price.toLocaleString()}</span>
-                          {m.oldPrice && <span className="prod-old">₮{(m.oldPrice as number).toLocaleString()}</span>}
+                          {m.oldPrice && <span className="prod-old">₮{m.oldPrice.toLocaleString()}</span>}
                         </div>
                         <span className="prod-unit">/ {m.unit}</span>
                       </div>
-                      <span className="prod-stock" style={{ background:m.stock>50?'#dcfce7':m.stock>10?'#fef9c3':'#fee2e2', color:m.stock>50?'#166534':m.stock>10?'#92400e':'#991b1b' }}>
+
+                      <span
+                        className="prod-stock"
+                        style={{
+                          background:m.stock > 50 ? '#dcfce7' : m.stock > 10 ? '#fef9c3' : '#fee2e2',
+                          color:m.stock > 50 ? '#166534' : m.stock > 10 ? '#92400e' : '#991b1b'
+                        }}
+                      >
                         {m.stock} {m.unit}
                       </span>
                     </div>
@@ -181,8 +202,6 @@ export default function MaterialsPagePublic() {
               ))}
             </div>
           )}
-
-          
         </div>
       </div>
     </>
