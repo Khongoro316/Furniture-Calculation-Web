@@ -255,11 +255,14 @@ export default function LandingPage() {
           <div className="h-right">
             {/* Тооцоолол товч — хоёуланд */}
             <button className="h-btn" onClick={() => router.push('/calculate')}>
-              <span className="h-btn-icon">📐</span>
               <span className="h-btn-label">Тооцоолол</span>
             </button>
 
             {/* Материал товч — хоёуланд */}
+            <button className="h-btn" onClick={() => router.push('/materials-page')}>
+              
+              <span className="h-btn-label">Материал</span>
+            </button>
             {authUser ? (
               <>
                 {/* Сагс */}
