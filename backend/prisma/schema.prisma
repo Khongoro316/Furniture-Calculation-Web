@@ -161,10 +161,12 @@ model materials {
   sheet_width       Decimal?            @db.Decimal(10, 2)
   price             Decimal             @default(0.00) @db.Decimal(15, 2)
   stock             Decimal             @default(0.0000) @db.Decimal(15, 4)
+  image_url         String?             @db.VarChar(500)       // ← НЭМЭХ 1
   is_active         Boolean             @default(true)
   created_by        Int
   created_at        DateTime            @default(now()) @db.DateTime(0)
   calculation_parts calculation_parts[]
+  material_images   material_images[]                          // ← НЭМЭХ 2
   organizations     organizations       @relation(fields: [org_id], references: [id], onUpdate: Restrict, map: "materials_ibfk_1")
   material_types    material_types      @relation(fields: [type_id], references: [id], onUpdate: Restrict, map: "materials_ibfk_2")
   users             users               @relation(fields: [created_by], references: [id], onUpdate: Restrict, map: "materials_ibfk_3")
@@ -364,3 +366,19 @@ enum users_role {
   customer
   guest
 }
+
+// 2) Шинэ material_images модел нэмэх:
+
+model material_images {
+  id          Int       @id @default(autoincrement())
+  material_id Int
+  url         String    @db.VarChar(500)
+  is_primary  Boolean   @default(false)
+  sort_order  Int       @default(0)
+  created_at  DateTime  @default(now()) @db.DateTime(0)
+  materials   materials @relation(fields: [material_id], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@index([material_id])
+}
+
+// Дараа нь: npx prisma db push эсвэл npx prisma migrate dev --name add_material_images
