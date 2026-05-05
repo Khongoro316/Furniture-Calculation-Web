@@ -19,4 +19,11 @@ router.put('/:id', authenticate, rbac(['super_admin']), async (req, res) => {
   return ctrl.update(req, res);
 });
 
+
+
+
+router.get('/stats', authenticate, rbac(['super_admin']), async (req, res) => {
+  const ctrl = require('./organization.controller');
+  return ctrl.getStats(req, res);
+});
 export default router;
