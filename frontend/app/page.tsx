@@ -72,13 +72,7 @@ export default function LandingPage() {
         html{scroll-behavior:smooth}
         body{font-family:'Plus Jakarta Sans',sans-serif;color:#1c1917;background:#fff;-webkit-font-smoothing:antialiased}
 
-        .topbar{background:#f5f5f7;border-bottom:1px solid #e5e7eb;padding:0 32px;height:36px;display:flex;align-items:center}
-        .topbar-inner{max-width:1400px;margin:0 auto;width:100%;display:flex;align-items:center;justify-content:space-between}
-        .topbar-l{display:flex;align-items:center;gap:20px}
-        .topbar-item{font-size:12px;color:#6b7280;display:flex;align-items:center;gap:5px}
-        .topbar-r{display:flex;align-items:center;gap:16px}
-        .topbar-link{font-size:12px;color:#6b7280;cursor:pointer;border:none;background:none;font-family:inherit;transition:color 0.15s}
-        .topbar-link:hover{color:#1c1917}
+        
 
         .header{background:white;border-bottom:1px solid #f0f0f0;padding:0 32px;position:sticky;top:0;z-index:200;transition:box-shadow 0.3s}
         .header.up{box-shadow:0 2px 16px rgba(0,0,0,0.08)}
@@ -242,17 +236,6 @@ export default function LandingPage() {
         @media(max-width:600px){.prod-grid{grid-template-columns:repeat(2,1fr)}.main{padding:0 16px}.header{padding:0 16px}.catbar{padding:0 16px}.mat-th,.mat-tr{grid-template-columns:1fr 70px 80px}.hide-sm{display:none}.footer-top{grid-template-columns:1fr}.footer-bot{flex-direction:column;gap:10px;text-align:center}.banner-content{padding:32px 24px}.banner-visual{display:none}}
       `}</style>
 
-      {/* TOP BAR */}
-      {/* TOP BAR */}
-<div className="topbar">
-  <div className="topbar-inner">
-    <div className="topbar-l" />
-<div className="topbar-r">
-  <div className="topbar-item">📞 +976 9900-1122</div>
-  <div className="topbar-item">📍 Дархан хот, Монгол</div>
-</div>
-</div>
-</div>
       {/* HEADER */}
       <header
         className={`header ${scrolled ? 'up' : ''}`}
