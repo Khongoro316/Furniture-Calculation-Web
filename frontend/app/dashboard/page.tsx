@@ -18,7 +18,7 @@ const ROLE_COLORS: Record<string, string> = {
 
 const ALL_MENUS = [
   { icon: '⊞', label: 'Хяналтын самбар', path: '/dashboard', roles: ['super_admin','admin','accountant','order_processor','worker','customer'], section: 'Цэс' },
-  { icon: '📐', label: 'Тооцоолол', path: '/calculate', roles: ['customer','admin','accountant','order_processor','worker'], section: 'Цэс' },
+  { icon: '📐', label: 'Тооцоолол', path: '/calculate', roles: ['customer'], section: 'Цэс' },
   { icon: '📦', label: 'Захиалга', path: '/orders', roles: ['order_processor','admin','worker'], section: 'Цэс', badge: true },
   { icon: '🪵', label: 'Материал', path: '/materials', roles: ['accountant','admin'], section: 'Цэс' },
   { icon: '🔧', label: 'Үйлчилгээ', path: '/services', roles: ['accountant','admin'], section: 'Цэс' },
@@ -89,31 +89,38 @@ export default function DashboardPage() {
   }, [mounted, user]);
 
   const loadStats = async () => {
-    try {
-      if (user?.role === 'super_admin') {
-        const [statsRes, auditRes] = await Promise.all([
-          api.get('/api/organizations/stats').catch(() => ({ data: { organizations: 0, users: 0, furniture_types: 0, calculations: 0 } })),
-          api.get('/api/audit-logs').catch(() => ({ data: [] })),
-        ]);
-        setSaStats(statsRes.data);
-        setRecentItems(auditRes.data.slice(0, 5));
-        setChartData([8, 12, 9, 15, 18, 14, 22, statsRes.data.calculations || 0]);
-        setChartData2([3, 5, 4, 8, 10, 7, 12, 15]);
-      } else {
-        const [ordersRes, calcRes] = await Promise.all([
-          api.get('/api/reports/orders').catch(() => ({ data: { total: 0, data: [] } })),
-          api.get('/api/reports/calculations').catch(() => ({ data: { total: 0 } })),
-        ]);
-        const orders = ordersRes.data.data || [];
-        const done = orders.filter((o: any) => o.status === 'done').length;
-        const income = orders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
-        setStats({ orders: ordersRes.data.total || 0, income, calculations: calcRes.data.total || 0, done });
-        setRecentItems(orders.slice(0, 4));
-        setChartData([20, 35, 28, 42, 38, 55, 48, 62]);
-        setChartData2([15, 28, 20, 35, 30, 44, 38, 50]);
-      }
-    } catch {}
-  };
+  try {
+    if (user?.role === 'super_admin') {
+      const [statsRes, auditRes] = await Promise.all([
+        api.get('/api/organizations/stats').catch(() => ({ data: { organizations:0, users:0, furniture_types:0, calculations:0 } })),
+        api.get('/api/audit-logs').catch(() => ({ data: [] })),
+      ]);
+      setSaStats(statsRes.data);
+      setRecentItems(auditRes.data.slice(0, 5));
+      setChartData([8,12,9,15,18,14,22, statsRes.data.calculations||0]);
+      setChartData2([3,5,4,8,10,7,12,15]);
+    } else if (user?.role === 'customer') {
+      // Customer-т захиалгын өөрийн мэдээлэл
+      const res = await api.get('/api/orders/my').catch(() => ({ data: [] }));
+      const orders = res.data || [];
+      const done = orders.filter((o:any) => o.status === 'done').length;
+      setStats({ orders: orders.length, income: 0, calculations: 0, done });
+      setRecentItems(orders.slice(0, 4));
+    } else {
+      const [ordersRes, calcRes] = await Promise.all([
+        api.get('/api/reports/orders').catch(() => ({ data: { total:0, data:[] } })),
+        api.get('/api/reports/calculations').catch(() => ({ data: { total:0 } })),
+      ]);
+      const orders = ordersRes.data.data || [];
+      const done = orders.filter((o:any) => o.status === 'done').length;
+      const income = orders.reduce((s:number, o:any) => s + Number(o.total_amount||0), 0);
+      setStats({ orders: ordersRes.data.total||0, income, calculations: calcRes.data.total||0, done });
+      setRecentItems(orders.slice(0, 4));
+      setChartData([20,35,28,42,38,55,48,62]);
+      setChartData2([15,28,20,35,30,44,38,50]);
+    }
+  } catch {}
+};
 
   // Chart — useEffect-д isSuperAdmin ашиглахын тулд user?.role-г шалгана
   useEffect(() => {
@@ -303,10 +310,6 @@ export default function DashboardPage() {
         {/* MAIN */}
         <div className="main">
           <nav className="topnav">
-            <div className="search-box">
-              <span style={{ fontSize: 15, color: '#94a3b8' }}>⌕</span>
-              <input placeholder="Хайх..." />
-            </div>
             <div className="nav-right">
               <div className="nav-btn">🔔</div>
               <div className="nav-btn">⚙️</div>
@@ -338,23 +341,6 @@ export default function DashboardPage() {
           </nav>
 
           <div className="page-content">
-
-            {/* GRADIENT HEADER */}
-            <div style={{ background: 'linear-gradient(135deg, #d97706 0%, #8b5cf6 50%, #a78bfa 100%)', borderRadius: 20, padding: '28px 32px', marginBottom: 24, position: 'relative', overflow: 'hidden', boxShadow: '0 8px 32px rgba(217,119,6,0.2)' }}>
-              <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, background: 'rgba(255,255,255,0.08)', borderRadius: '50%' }} />
-              <div style={{ position: 'absolute', bottom: -50, right: 120, width: 130, height: 130, background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }} />
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500, marginBottom: 6 }}>
-                {new Date().getHours() < 12 ? '🌅 Өглөөний мэнд' : new Date().getHours() < 18 ? '☀️ Өдрийн мэнд' : '🌙 Оройн мэнд'}
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: 'white', marginBottom: 8 }}>{user.last_name} {user.first_name}</div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 100, padding: '4px 14px', fontSize: 12, color: 'white', fontWeight: 600 }}>
-                <span>⚡</span> {ROLE_LABELS[user.role]} эрхээр нэвтэрсэн
-              </div>
-              <div style={{ position: 'absolute', top: 20, right: 24, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
-                {new Date().toLocaleDateString('mn-MN', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </div>
-            </div>
-
             {/* ═══ SUPER ADMIN ═══ */}
             {isSuperAdmin && (
               <>
@@ -471,86 +457,408 @@ export default function DashboardPage() {
             )}
 
             {/* ═══ OTHER ADMINS ═══ */}
-            {isOtherAdmin && (
-              <>
-                <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
-                  <div className="stat-card">
-                    <div className="stat-top"><span className="stat-label">Нийт захиалга</span><div className="stat-icon-wrap" style={{ background: '#fef3c7' }}>📦</div></div>
-                    <div className="stat-val">{stats.orders}</div>
-                    <div className="stat-chg chg-up">▲ Нийт захиалгын тоо</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-top"><span className="stat-label">Нийт орлого</span><div className="stat-icon-wrap" style={{ background: '#fef9c3' }}>💰</div></div>
-                    <div className="stat-val">₮{(stats.income / 1000000).toFixed(1)}M</div>
-                    <div className="stat-chg chg-up">▲ Нийт орлого</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-top"><span className="stat-label">Тооцоолол хийгдсэн</span><div className="stat-icon-wrap" style={{ background: '#fee2e2' }}>📐</div></div>
-                    <div className="stat-val">{stats.calculations}</div>
-                    <div className="stat-chg chg-up">▲ Нийт тооцоолол</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-top"><span className="stat-label">Биелэсэн захиалга</span><div className="stat-icon-wrap" style={{ background: '#dcfce7' }}>✅</div></div>
-                    <div className="stat-val">{stats.done}</div>
-                    <div className="stat-chg chg-up">▲ Амжилттай дууссан</div>
-                  </div>
-                </div>
+           {/* ═══ ADMIN DASHBOARD ═══ */}
+{user.role === 'admin' && (
+  <>
+    {/* Stat cards */}
+    <div className="stats-grid" style={{ gridTemplateColumns:'repeat(4,1fr)', marginBottom:20 }}>
+      {[
+        { label:'Нийт захиалга', val:stats.orders, icon:'📦', bg:'#fef3c7', color:'#92400e', sub:'Нийт захиалгын тоо' },
+        { label:'Нийт орлого', val:`₮${(stats.income/1000000).toFixed(1)}M`, icon:'💰', bg:'#fef9c3', color:'#b45309', sub:'Нийт орлого' },
+        { label:'Тооцоолол', val:stats.calculations, icon:'📐', bg:'#fef3c7', color:'#92400e', sub:'Нийт тооцоолол' },
+        { label:'Биелэсэн', val:stats.done, icon:'✅', bg:'#dcfce7', color:'#059669', sub:'Амжилттай дууссан' },
+      ].map(s => (
+        <div key={s.label} className="stat-card">
+          <div className="stat-top">
+            <span className="stat-label">{s.label}</span>
+            <div className="stat-icon-wrap" style={{ background:s.bg }}>{s.icon}</div>
+          </div>
+          <div className="stat-val" style={{ color:s.color }}>{s.val}</div>
+          <div className="stat-chg chg-up">▲ {s.sub}</div>
+        </div>
+      ))}
+    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 14 }}>
-                  <div className="card">
-                    <div className="card-hd">
-                      <div><div className="card-title">Захиалгын түүх</div><div className="card-sub">Сарын захиалгын тоо — 2026</div></div>
-                      <span className="pill" style={{ background: '#fef3c7', color: '#1e40af' }}>2026</span>
-                    </div>
-                    <div className="legend-row">
-                      <div className="leg-item"><div className="leg-dot" style={{ background: '#d97706' }}></div>Захиалга</div>
-                      <div className="leg-item"><div className="leg-dot" style={{ background: '#fde68a' }}></div>Биелсэн</div>
-                    </div>
-                    <div style={{ position: 'relative', height: 200 }}>
-                      <canvas id="barChart" role="img" aria-label="Сарын захиалгын тоо"></canvas>
-                    </div>
-                  </div>
-                  <div className="card">
-                    <div className="card-hd">
-                      <div><div className="card-title">Сүүлийн захиалгууд</div><div className="card-sub">{recentItems.length} захиалга</div></div>
-                      <span className="pill" style={{ background: '#dcfce7', color: '#166534', cursor: 'pointer' }} onClick={() => router.push('/orders')}>Бүгд →</span>
-                    </div>
-                    {recentItems.map((o: any, i: number) => (
-                      <div key={i} className="ord-item">
-                        <div className="ord-avatar" style={{ background: avatarColors[i % avatarColors.length] }}>
-                          {o.customer?.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className="ord-name">{o.customer}</div>
-                          <div className="ord-type">{o.furniture || 'Тавилга'}</div>
-                        </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div className="ord-amt">₮{Number(o.total_amount).toLocaleString()}</div>
-                          <div className="ord-st" style={{ background: STATUS_LABELS[o.status]?.bg || '#f1f5f9', color: STATUS_LABELS[o.status]?.color || '#64748b' }}>
-                            {STATUS_LABELS[o.status]?.label || o.status}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
+    {/* Үндсэн хэсэг */}
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
 
-            {/* ═══ CUSTOMER & WORKER ═══ */}
-            {['customer','worker'].includes(user.role) && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
-                {visibleMenus.filter(m => m.path !== '/dashboard').map(menu => (
-                  <div key={menu.path} onClick={() => router.push(menu.path)}
-                    style={{ background: 'white', border: '0.5px solid #e2e8f0', borderRadius: 14, padding: '22px 20px', cursor: 'pointer', transition: 'all 0.2s' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.transform = 'none'; }}>
-                    <div style={{ fontSize: 28, marginBottom: 12 }}>{menu.icon}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>{menu.label}</div>
-                  </div>
-                ))}
+      {/* Ажилтны удирдлага */}
+      <div className="card">
+        <div className="card-hd">
+          <div>
+            <div className="card-title">👥 Ажилтны удирдлага</div>
+            <div className="card-sub">Бүртгэх, засах, эрх тохируулах</div>
+          </div>
+          
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+          {[
+            { icon:'👤', label:'Шинэ ажилтан бүртгэх', sub:'Нэр, имэйл, эрх тохируулах', path:'/users', color:'#fef3c7' },
+            { icon:'🔐', label:'Эрх хандалт тохируулах', sub:'Нягтлан, ажилтан, боловсруулагч', path:'/users', color:'#fef3c7' },
+            { icon:'✏️', label:'Ажилтны мэдээлэл засах', sub:'Идэвхжүүлэх, зогсоох', path:'/users', color:'#dcfce7' },
+          ].map(item => (
+            <div key={item.label} className="qa-item" onClick={() => router.push(item.path)}>
+              <div className="qa-icon" style={{ background:item.color }}>{item.icon}</div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#0f172a' }}>{item.label}</div>
+                <div style={{ fontSize:10, color:'#94a3b8', marginTop:1 }}>{item.sub}</div>
               </div>
-            )}
+              <span style={{ marginLeft:'auto', fontSize:12, color:'#d97706' }}>→</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Байгууллагын мэдээлэл */}
+      <div className="card">
+        <div className="card-hd">
+          <div>
+            <div className="card-title">🏢 Байгууллагын мэдээлэл</div>
+            <div className="card-sub">Мэдээлэл шинэчлэх, хянах</div>
+          </div>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {[
+            { label:'Байгууллагын нэр', val:'Тавилгын цех #1', icon:'🏢' },
+            { label:'Хандалтын түвшин', val:'Бүрэн эрх', icon:'🔐' },
+            { label:'Бүртгэлтэй ажилтан', val:`${stats.orders > 0 ? '4+' : '0'} хүн`, icon:'👥' },
+            { label:'Сүүлийн нэвтрэлт', val:new Date().toLocaleDateString('mn-MN'), icon:'📅' },
+          ].map(r => (
+            <div key={r.label} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #f1f5f9', fontSize:12 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, color:'#64748b' }}>
+                <span>{r.icon}</span>{r.label}
+              </div>
+              <span style={{ fontWeight:600, color:'#0f172a' }}>{r.val}</span>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => router.push('/organizations')}
+          style={{ width:'100%', marginTop:12, background:'#fef3c7', color:'#92400e', border:'1px solid #fde68a', borderRadius:9, padding:'9px', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
+        >
+          Байгууллагын мэдээлэл харах →
+        </button>
+      </div>
+    </div>
+
+    {/* Тайлан + Захиалга */}
+    <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:14 }}>
+
+      {/* Тайлан */}
+      <div className="card">
+        <div className="card-hd">
+          <div>
+            <div className="card-title">📊 Тайлангийн удирдлага</div>
+            <div className="card-sub">Огноо, төлөв, ажилтнаар шүүж гаргах</div>
+          </div>
+          <button
+            onClick={() => router.push('/reports')}
+            style={{ background:'#f1f5f9', color:'#475569', border:'none', borderRadius:8, padding:'5px 12px', fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
+          >
+            Бүгд →
+          </button>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
+          {[
+            { icon:'📦', label:'Захиалгын тайлан', sub:'Төлөвөөр шүүх', path:'/reports', bg:'#fef3c7' },
+            { icon:'💰', label:'Санхүүгийн тайлан', sub:'Орлого, зарлага', path:'/reports', bg:'#fef9c3' },
+            { icon:'👷', label:'Ажилтны тайлан', sub:'Гүйцэтгэлээр', path:'/reports', bg:'#dcfce7' },
+            { icon:'📥', label:'Excel татах', sub:'Бүх тайлан', path:'/reports', bg:'#f0fdf4' },
+          ].map(item => (
+            <div key={item.label} className="qa-item" onClick={() => router.push(item.path)}>
+              <div className="qa-icon" style={{ background:item.bg }}>{item.icon}</div>
+              <div>
+                <div style={{ fontSize:11, fontWeight:600, color:'#0f172a' }}>{item.label}</div>
+                <div style={{ fontSize:10, color:'#94a3b8', marginTop:1 }}>{item.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ position:'relative', height:160 }}>
+          <canvas id="barChart" role="img" aria-label="Захиалгын график"></canvas>
+        </div>
+      </div>
+
+      {/* Сүүлийн захиалга */}
+      <div className="card">
+        <div className="card-hd">
+          <div>
+            <div className="card-title">📦 Сүүлийн захиалгууд</div>
+            <div className="card-sub">{recentItems.length} захиалга</div>
+          </div>
+          <span className="pill" style={{ background:'#fef3c7', color:'#92400e', cursor:'pointer' }} onClick={() => router.push('/orders')}>
+            Бүгд →
+          </span>
+        </div>
+        {recentItems.length === 0 && (
+          <div style={{ textAlign:'center', padding:'32px 0', color:'#94a3b8', fontSize:13 }}>
+            Захиалга байхгүй байна
+          </div>
+        )}
+        {recentItems.map((o:any, i:number) => (
+          <div key={i} className="ord-item">
+            <div className="ord-avatar" style={{ background:avatarColors[i%avatarColors.length] }}>
+              {o.customer?.split(' ').map((w:string)=>w[0]).join('').slice(0,2)}
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div className="ord-name">{o.customer || '—'}</div>
+              <div className="ord-type">{o.furniture || 'Тавилга'}</div>
+            </div>
+            <div style={{ textAlign:'right', flexShrink:0 }}>
+              <div className="ord-amt">₮{Number(o.total_amount||0).toLocaleString()}</div>
+              <div className="ord-st" style={{ background:STATUS_LABELS[o.status]?.bg||'#f1f5f9', color:STATUS_LABELS[o.status]?.color||'#64748b' }}>
+                {STATUS_LABELS[o.status]?.label||o.status}
+              </div>
+            </div>
+          </div>
+        ))}
+        <button
+          onClick={() => router.push('/orders')}
+          style={{ width:'100%', marginTop:12, background:'#fef3c7', color:'#92400e', border:'1px solid #fde68a', borderRadius:9, padding:'9px', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
+        >
+          Бүх захиалга харах →
+        </button>
+      </div>
+    </div>
+  </>
+)}
+
+{/* ═══ ACCOUNTANT DASHBOARD ═══ */}
+{user.role === 'accountant' && (
+  <>
+    <div style={{
+      background:'linear-gradient(135deg,#1c1917,#292524)',
+      borderRadius:20, padding:'24px 28px', marginBottom:20,
+      position:'relative', overflow:'hidden',
+    }}>
+      <div style={{ position:'absolute', top:-40, right:-40, width:160, height:160, background:'radial-gradient(circle,rgba(217,119,6,0.2),transparent 70%)', borderRadius:'50%' }} />
+      <div style={{ fontSize:20, fontWeight:800, color:'white', marginBottom:6 }}>
+        {user.last_name} {user.first_name}
+      </div>
+      <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:'rgba(217,119,6,0.2)', border:'1px solid rgba(217,119,6,0.4)', borderRadius:100, padding:'4px 12px', fontSize:11, color:'#fbbf24', fontWeight:600 }}>
+        🧾 Нягтлан эрхээр нэвтэрсэн
+      </div>
+    </div>
+
+    <div className="stats-grid" style={{ gridTemplateColumns:'repeat(3,1fr)', marginBottom:20 }}>
+      {[
+        { label:'Нийт орлого', val:`₮${(stats.income/1000000).toFixed(1)}M`, icon:'💰', bg:'#fef9c3', color:'#b45309' },
+        { label:'Нийт захиалга', val:stats.orders, icon:'📦', bg:'#fef3c7', color:'#92400e' },
+        { label:'Биелэсэн захиалга', val:stats.done, icon:'✅', bg:'#dcfce7', color:'#059669' },
+      ].map(s => (
+        <div key={s.label} className="stat-card">
+          <div className="stat-top">
+            <span className="stat-label">{s.label}</span>
+            <div className="stat-icon-wrap" style={{ background:s.bg }}>{s.icon}</div>
+          </div>
+          <div className="stat-val" style={{ color:s.color }}>{s.val}</div>
+        </div>
+      ))}
+    </div>
+
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+      <div className="card">
+        <div className="card-hd">
+          <div><div className="card-title">🪵 Материал удирдах</div><div className="card-sub">Үнэ, үлдэгдэл бүртгэх</div></div>
+          <button onClick={() => router.push('/materials')} style={{ background:'linear-gradient(135deg,#d97706,#b45309)', color:'white', border:'none', borderRadius:8, padding:'6px 14px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+            Нэмэх
+          </button>
+        </div>
+        {[
+          { icon:'🪵', label:'Материал нэмэх', sub:'ЛДСП, МДФ, HDF...', path:'/materials', bg:'#fef3c7' },
+          { icon:'🔧', label:'Үйлчилгээ нэмэх', sub:'Зүсэлт, ирмэг, угсралт', path:'/services', bg:'#fef9c3' },
+          { icon:'💰', label:'Үнэ шинэчлэх', sub:'Материалын үнэ', path:'/materials', bg:'#dcfce7' },
+        ].map(item => (
+          <div key={item.label} className="qa-item" style={{ marginBottom:6 }} onClick={() => router.push(item.path)}>
+            <div className="qa-icon" style={{ background:item.bg }}>{item.icon}</div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:'#0f172a' }}>{item.label}</div>
+              <div style={{ fontSize:10, color:'#94a3b8', marginTop:1 }}>{item.sub}</div>
+            </div>
+            <span style={{ marginLeft:'auto', fontSize:12, color:'#d97706' }}>→</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="card-hd">
+          <div><div className="card-title">📊 Санхүүгийн тайлан</div><div className="card-sub">Орлого, зарлагын дүн шинжилгээ</div></div>
+          <button onClick={() => router.push('/reports')} style={{ background:'#f1f5f9', color:'#475569', border:'none', borderRadius:8, padding:'5px 12px', fontSize:11, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+            Харах →
+          </button>
+        </div>
+        {[
+          { label:'Санхүүгийн тайлан', icon:'💰', path:'/reports' },
+          { label:'Материалын тайлан', icon:'🪵', path:'/reports' },
+          { label:'Excel татах', icon:'📥', path:'/reports' },
+        ].map(r => (
+          <div key={r.label} className="qa-item" style={{ marginBottom:6 }} onClick={() => router.push(r.path)}>
+            <div className="qa-icon" style={{ background:'#fef3c7' }}>{r.icon}</div>
+            <div style={{ fontSize:12, fontWeight:600, color:'#0f172a' }}>{r.label}</div>
+            <span style={{ marginLeft:'auto', fontSize:12, color:'#d97706' }}>→</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </>
+)}
+
+{/* ═══ ORDER PROCESSOR DASHBOARD ═══ */}
+{user.role === 'order_processor' && (
+  <>
+    <div style={{
+      background:'linear-gradient(135deg,#1c1917,#292524)',
+      borderRadius:20, padding:'24px 28px', marginBottom:20,
+      position:'relative', overflow:'hidden',
+    }}>
+      <div style={{ position:'absolute', top:-40, right:-40, width:160, height:160, background:'radial-gradient(circle,rgba(217,119,6,0.2),transparent 70%)', borderRadius:'50%' }} />
+      <div style={{ fontSize:20, fontWeight:800, color:'white', marginBottom:6 }}>
+        {user.last_name} {user.first_name}
+      </div>
+      <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:'rgba(217,119,6,0.2)', border:'1px solid rgba(217,119,6,0.4)', borderRadius:100, padding:'4px 12px', fontSize:11, color:'#fbbf24', fontWeight:600 }}>
+        📋 Захиалга боловсруулагч
+      </div>
+    </div>
+
+    <div className="stats-grid" style={{ gridTemplateColumns:'repeat(4,1fr)', marginBottom:20 }}>
+      {[
+        { label:'Нийт захиалга', val:stats.orders, icon:'📦', bg:'#fef3c7', color:'#92400e' },
+        { label:'Хүлээгдэж байна', val:recentItems.filter((o:any)=>o.status==='pending').length, icon:'⏳', bg:'#fef9c3', color:'#b45309' },
+        { label:'Гүйцэтгэж байна', val:recentItems.filter((o:any)=>o.status==='in_progress').length, icon:'🔄', bg:'#dbeafe', color:'#1d4ed8' },
+        { label:'Дууссан', val:stats.done, icon:'✅', bg:'#dcfce7', color:'#059669' },
+      ].map(s => (
+        <div key={s.label} className="stat-card">
+          <div className="stat-top">
+            <span className="stat-label">{s.label}</span>
+            <div className="stat-icon-wrap" style={{ background:s.bg }}>{s.icon}</div>
+          </div>
+          <div className="stat-val" style={{ color:s.color }}>{s.val}</div>
+        </div>
+      ))}
+    </div>
+
+    <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr', gap:14 }}>
+      <div className="card">
+        <div className="card-hd">
+          <div><div className="card-title">📦 Захиалга удирдах</div><div className="card-sub">Батлах, хуваарилах, хянах</div></div>
+          <button onClick={() => router.push('/orders')} style={{ background:'linear-gradient(135deg,#d97706,#b45309)', color:'white', border:'none', borderRadius:8, padding:'6px 14px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+            Бүгд харах
+          </button>
+        </div>
+        {recentItems.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'32px 0', color:'#94a3b8', fontSize:13 }}>Захиалга байхгүй байна</div>
+        ) : (
+          recentItems.map((o:any, i:number) => (
+            <div key={i} className="ord-item" style={{ cursor:'pointer' }} onClick={() => router.push('/orders')}>
+              <div className="ord-avatar" style={{ background:avatarColors[i%avatarColors.length] }}>
+                {o.customer?.split(' ').map((w:string)=>w[0]).join('').slice(0,2)}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div className="ord-name">{o.customer||'—'}</div>
+                <div className="ord-type">{o.furniture||'Тавилга'}</div>
+              </div>
+              <div style={{ textAlign:'right', flexShrink:0 }}>
+                <div className="ord-amt">₮{Number(o.total_amount||0).toLocaleString()}</div>
+                <div className="ord-st" style={{ background:STATUS_LABELS[o.status]?.bg||'#f1f5f9', color:STATUS_LABELS[o.status]?.color||'#64748b' }}>
+                  {STATUS_LABELS[o.status]?.label||o.status}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="card">
+        <div className="card-hd">
+          <div><div className="card-title">⚡ Түргэн үйлдлүүд</div><div className="card-sub">Байнга хэрэглэдэг</div></div>
+        </div>
+        {[
+          { icon:'✅', label:'Захиалга батлах', sub:'Pending → Confirmed', path:'/orders', bg:'#dcfce7' },
+          { icon:'👷', label:'Ажилтанд хуваарилах', sub:'Assigned гэж тохируулах', path:'/orders', bg:'#fef3c7' },
+          { icon:'📊', label:'Захиалгын тайлан', sub:'Гүйцэтгэлийн дүн', path:'/reports', bg:'#fef9c3' },
+          { icon:'🔍', label:'Захиалга хайх', sub:'Дугаар, хэрэглэгчээр', path:'/orders', bg:'#f0f9ff' },
+        ].map(item => (
+          <div key={item.label} className="qa-item" style={{ marginBottom:6 }} onClick={() => router.push(item.path)}>
+            <div className="qa-icon" style={{ background:item.bg }}>{item.icon}</div>
+            <div>
+              <div style={{ fontSize:11, fontWeight:600, color:'#0f172a' }}>{item.label}</div>
+              <div style={{ fontSize:10, color:'#94a3b8', marginTop:1 }}>{item.sub}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </>
+)}
+
+{/* ═══ WORKER DASHBOARD ═══ */}
+{user.role === 'worker' && (
+  <>
+    <div style={{
+      background:'linear-gradient(135deg,#1c1917,#292524)',
+      borderRadius:20, padding:'24px 28px', marginBottom:20,
+      position:'relative', overflow:'hidden',
+    }}>
+      <div style={{ position:'absolute', top:-40, right:-40, width:160, height:160, background:'radial-gradient(circle,rgba(217,119,6,0.2),transparent 70%)', borderRadius:'50%' }} />
+      <div style={{ fontSize:20, fontWeight:800, color:'white', marginBottom:6 }}>
+        {user.last_name} {user.first_name}
+      </div>
+      <div style={{ display:'inline-flex', alignItems:'center', gap:6, background:'rgba(217,119,6,0.2)', border:'1px solid rgba(217,119,6,0.4)', borderRadius:100, padding:'4px 12px', fontSize:11, color:'#fbbf24', fontWeight:600 }}>
+        🔨 Ажилтан
+      </div>
+    </div>
+
+    <div className="stats-grid" style={{ gridTemplateColumns:'repeat(3,1fr)', marginBottom:20 }}>
+      {[
+        { label:'Миний захиалга', val:stats.orders, icon:'📦', bg:'#fef3c7', color:'#92400e' },
+        { label:'Гүйцэтгэж байна', val:recentItems.filter((o:any)=>o.status==='in_progress').length, icon:'🔄', bg:'#dbeafe', color:'#1d4ed8' },
+        { label:'Дууссан', val:stats.done, icon:'✅', bg:'#dcfce7', color:'#059669' },
+      ].map(s => (
+        <div key={s.label} className="stat-card">
+          <div className="stat-top">
+            <span className="stat-label">{s.label}</span>
+            <div className="stat-icon-wrap" style={{ background:s.bg }}>{s.icon}</div>
+          </div>
+          <div className="stat-val" style={{ color:s.color }}>{s.val}</div>
+        </div>
+      ))}
+    </div>
+
+    <div className="card">
+      <div className="card-hd">
+        <div><div className="card-title">📦 Миний захиалгууд</div><div className="card-sub">Оноогдсон захиалгуудыг гүйцэтгэх</div></div>
+        <button onClick={() => router.push('/orders')} style={{ background:'linear-gradient(135deg,#d97706,#b45309)', color:'white', border:'none', borderRadius:8, padding:'6px 14px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+          Бүгд харах
+        </button>
+      </div>
+      {recentItems.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'40px 0' }}>
+          <div style={{ fontSize:36, marginBottom:10 }}>📭</div>
+          <div style={{ fontSize:14, fontWeight:600, color:'#0f172a', marginBottom:6 }}>Захиалга байхгүй байна</div>
+          <div style={{ fontSize:12, color:'#94a3b8' }}>Танд одоогоор захиалга оногдоогүй байна</div>
+        </div>
+      ) : (
+        recentItems.map((o:any, i:number) => (
+          <div key={i} className="ord-item" style={{ cursor:'pointer' }} onClick={() => router.push('/orders')}>
+            <div className="ord-avatar" style={{ background:avatarColors[i%avatarColors.length] }}>
+              {o.customer?.split(' ').map((w:string)=>w[0]).join('').slice(0,2)}
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div className="ord-name">{o.customer||'—'}</div>
+              <div className="ord-type">{o.furniture||'Тавилга'} · {new Date(o.created_at).toLocaleDateString('mn-MN')}</div>
+            </div>
+            <div style={{ textAlign:'right', flexShrink:0 }}>
+              <div className="ord-amt">₮{Number(o.total_amount||0).toLocaleString()}</div>
+              <div className="ord-st" style={{ background:STATUS_LABELS[o.status]?.bg||'#f1f5f9', color:STATUS_LABELS[o.status]?.color||'#64748b' }}>
+                {STATUS_LABELS[o.status]?.label||o.status}
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </>
+)}
 
           </div>
         </div>
