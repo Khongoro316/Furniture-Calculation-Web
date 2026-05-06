@@ -160,3 +160,30 @@ export const getStats = async (req: Request, res: Response) => {
     res.json({ organizations: orgCount, users: userCount, furniture_types: ftCount, calculations: calcCount });
   } catch { res.status(500).json({ message: 'Алдаа гарлаа' }); }
 };
+
+export const getOrgUsers = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const users = await (prisma as any).users.findMany({
+      where: {
+        org_id: Number(id),
+        role: { not: 'customer' },
+      },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        role: true,
+        phone: true,
+        is_active: true,
+        created_at: true,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    res.json(users);
+  } catch (err) {
+    console.error('getOrgUsers:', err);
+    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+  }
+};

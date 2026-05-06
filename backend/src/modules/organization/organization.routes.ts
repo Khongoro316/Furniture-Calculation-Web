@@ -64,4 +64,10 @@ router.get('/stats', authenticate, rbac(['super_admin']), async (req, res) => {
   const ctrl = require('./organization.controller');
   return ctrl.getStats(req, res);
 });
+
+router.get('/:id/users', authenticate, rbac(['super_admin']), async (req, res) => {
+  const ctrl = require('./organization.controller');
+  return ctrl.getOrgUsers(req, res);
+});
+ 
 export default router;
