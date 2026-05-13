@@ -6,6 +6,9 @@ interface User {
   last_name: string;
   email: string;
   role: string;
+  org_id?: number;    // ← ЭНЭ МӨРИЙГ НЭМ
+  phone?: string;
+  is_active?: boolean;
 }
 
 interface AuthStore {

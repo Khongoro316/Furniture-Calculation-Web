@@ -70,4 +70,16 @@ router.get('/:id/users', authenticate, rbac(['super_admin']), async (req, res) =
   return ctrl.getOrgUsers(req, res);
 });
  
+router.get('/:id', authenticate, rbac(['admin', 'super_admin']), async (req, res) => {
+  try {
+    const db = (await import('../../prisma')).default as any;
+    const org = await db.organizations.findUnique({
+      where: { id: Number(req.params.id) },
+    });
+    if (!org) return res.status(404).json({ message: 'Олдсонгүй' });
+    res.json(org);
+  } catch {
+    res.status(500).json({ message: 'Алдаа гарлаа' });
+  }
+});
 export default router;

@@ -31,7 +31,6 @@ export const register = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Системийн алдаа гарлаа' });
   }
 };
-
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
@@ -47,7 +46,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, role: user.role },
+      { userId: user.id, role: user.role, org_id: user.org_id },  // ← org_id нэмэх
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
@@ -59,28 +58,42 @@ export const login = async (req: Request, res: Response) => {
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        org_id: user.org_id,   // ← ЭНЭ МӨРИЙГ НЭМ
+        phone: user.phone,
       }
     });
   } catch (error) {
     res.status(500).json({ message: 'Системийн алдаа гарлаа' });
   }
 };
-
 export const getWorkers = async (req: Request, res: Response) => {
   try {
-    const workers = await prisma.users.findMany({
-      where: { role: 'worker', is_active: true },
+    const reqUser = (req as any).user;
+    
+    // org_id байхгүй бол бүх ажилтнуудыг буцаах
+    const whereClause: any = {
+      role: { in: ['admin', 'accountant', 'order_processor', 'worker'] },
+      is_active: true,
+    };
+    
+    // org_id байвал тухайн байгууллагаар шүүх
+    if (reqUser.org_id) {
+      whereClause.org_id = reqUser.org_id;
+    }
+
+    const workers = await (prisma as any).users.findMany({
+      where: whereClause,
       select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        role: true
-      }
+        id: true, first_name: true, last_name: true,
+        email: true, role: true, phone: true, 
+        is_active: true, created_at: true,
+      },
+      orderBy: { created_at: 'desc' },
     });
     res.json(workers);
-  } catch {
+  } catch (err) {
+    console.error('getWorkers:', err);
     res.status(500).json({ message: 'Системийн алдаа гарлаа' });
   }
 };
@@ -151,3 +164,154 @@ export const resetPassword = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Системийн алдаа гарлаа' });
   }
 };
+
+export const updateUserRole = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    const reqUser = (req as any).user;
+
+    const allowedRoles = ['accountant', 'order_processor', 'worker'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: 'Зөвшөөрөгдөөгүй эрх' });
+    }
+
+    // Хэрэглэгч байгааг шалгах
+    const targetUser = await (prisma as any).users.findUnique({
+      where: { id: Number(id) },
+    });
+    
+    if (!targetUser) {
+      return res.status(404).json({ message: 'Хэрэглэгч олдсонгүй' });
+    }
+
+    const updated = await (prisma as any).users.update({
+      where: { id: Number(id) },
+      data: { role },
+      select: { id: true, first_name: true, last_name: true, email: true, role: true },
+    });
+
+    res.json({ message: 'Эрх амжилттай шинэчлэгдлээ', user: updated });
+  } catch (err) {
+    console.error('updateUserRole:', err);
+    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+  }
+};
+
+// Админ ажилтан бүртгэх (org_id автоматаар авна)
+export const createWorker = async (req: Request, res: Response) => {
+  try {
+    const reqUser = (req as any).user;
+    const { first_name, last_name, email, phone, role, password } = req.body;
+ 
+    console.log('📥 createWorker:', { first_name, last_name, email, role, org_id: reqUser.org_id });
+ 
+    if (!first_name || !last_name || !email) {
+      return res.status(400).json({ message: 'Овог, нэр, имэйл заавал шаардлагатай' });
+    }
+ 
+    const allowedRoles = ['accountant', 'order_processor', 'worker'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: 'Зөвшөөрөгдөөгүй эрх. Зөвхөн: нягтлан, захиалга боловсруулагч, ажилтан' });
+    }
+ 
+    if (!reqUser.org_id) {
+      return res.status(400).json({ message: 'Таны бүртгэлд байгууллага холбогдоогүй байна' });
+    }
+ 
+    const existing = await (prisma as any).users.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(400).json({ message: 'Энэ имэйл бүртгэлтэй байна' });
+    }
+ 
+    // Нууц үг — өгсөн бол ашиглах, үгүй бол автомат үүсгэх
+    const rawPassword = password || Math.random().toString(36).slice(-8) + 'A1!';
+    const password_hash = await bcrypt.hash(rawPassword, 12);
+ 
+    const newUser = await (prisma as any).users.create({
+      data: {
+        org_id: reqUser.org_id,
+        first_name,
+        last_name,
+        email,
+        phone: phone || null,
+        password_hash,
+        role,
+      },
+      select: {
+        id: true, first_name: true, last_name: true,
+        email: true, role: true, is_active: true, created_at: true,
+      },
+    });
+ 
+    // Welcome email
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+      });
+ 
+      const ROLE_LABELS: Record<string, string> = {
+        accountant: 'Нягтлан', order_processor: 'Захиалга боловсруулагч', worker: 'Ажилтан',
+      };
+ 
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'FurniCalc — Таны нэвтрэх мэдээлэл',
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+            <div style="background:linear-gradient(135deg,#d97706,#b45309);border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
+              <h1 style="color:white;margin:0;font-size:22px">🪑 FurniCalc</h1>
+            </div>
+            <h2 style="color:#0f172a">Тавтай морил, ${last_name} ${first_name}!</h2>
+            <p style="color:#64748b">Таны бүртгэл амжилттай үүсгэгдлээ.</p>
+            <p style="color:#64748b">Эрх: <strong>${ROLE_LABELS[role] || role}</strong></p>
+            <div style="background:#f8fafc;border-radius:10px;padding:16px;margin:20px 0">
+              <p style="margin:0 0 8px;font-size:13px;color:#64748b">Нэвтрэх имэйл:</p>
+              <strong style="color:#0f172a">${email}</strong>
+              <p style="margin:12px 0 8px;font-size:13px;color:#64748b">Нууц үг:</p>
+              <strong style="color:#d97706;font-size:18px;letter-spacing:0.05em">${rawPassword}</strong>
+            </div>
+            <p style="color:#94a3b8;font-size:12px">Нэвтэрсний дараа нууц үгээ солиорой.</p>
+          </div>
+        `,
+      });
+    } catch (emailErr) {
+      console.error('Email алдаа:', emailErr);
+    }
+ 
+    res.status(201).json({
+      user: newUser,
+      message: `${last_name} ${first_name} амжилттай бүртгэгдлээ. Нэвтрэх мэдээлэл ${email} руу илгээгдлээ.`,
+      tempPassword: rawPassword,
+    });
+  } catch (err) {
+    console.error('❌ createWorker алдаа:', err);
+    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+  }
+};
+ 
+// Байгууллагын хэрэглэгчдийн жагсаалт
+export const getOrgUsers = async (req: Request, res: Response) => {
+  try {
+    const reqUser = (req as any).user;
+    const users = await (prisma as any).users.findMany({
+      where: {
+        org_id: reqUser.org_id,
+        role: { in: ['admin', 'accountant', 'order_processor', 'worker'] },
+      },
+      select: {
+        id: true, first_name: true, last_name: true,
+        email: true, role: true, phone: true,
+        is_active: true, created_at: true,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    res.json(users);
+  } catch (err) {
+    console.error('getOrgUsers:', err);
+    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+  }
+};
+ 
