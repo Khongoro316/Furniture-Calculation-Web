@@ -273,13 +273,16 @@ export default function CartPage() {
                 onChange={e => setNote(e.target.value)}
               />
 
-              <button
-                className="order-btn"
-                onClick={placeOrder}
-                disabled={placing || items.length === 0}
-              >
-                {placing ? '⏳ Захиалж байна...' : '✅ Захиалга өгөх'}
-              </button>
+                    // placeOrder функцыг устгана
+
+        // "Захиалга өгөх" товчийг олоод солих:
+        <button
+        className="order-btn"
+        onClick={() => router.push('/checkout')}
+        disabled={items.length === 0}
+        >
+        Захиалга хийх →
+        </button>
 
               {!user && (
                 <div className="login-note">

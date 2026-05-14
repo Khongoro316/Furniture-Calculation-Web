@@ -2,7 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
-  user?: { userId: number; role: string };
+  user?: {
+    userId: number;
+    role: string;
+    org_id?: number;
+  };
 }
 
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction): void => {
@@ -11,10 +15,17 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     res.status(401).json({ message: 'Token байхгүй байна' });
     return;
   }
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: number; role: string };
-    req.user = decoded;
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || 'secret'
+    ) as { userId: number; role: string; org_id?: number };
+
+    req.user = {
+      userId: decoded.userId,
+      role:   decoded.role,
+      org_id: decoded.org_id,
+    };
     next();
   } catch {
     res.status(401).json({ message: 'Token буруу байна' });

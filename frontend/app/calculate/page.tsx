@@ -23,7 +23,8 @@ export default function CalculatePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
-
+// State нэмэх (бусад state-уудын хажууд)
+const [savedCalcId, setSavedCalcId] = useState<number | null>(null);
   useEffect(() => {
     const u = localStorage.getItem('user');
     const t = localStorage.getItem('token');
@@ -66,17 +67,20 @@ export default function CalculatePage() {
     } finally { setLoading(false); }
   };
 
-  const handleSave = async () => {
-    if (!selectedType || !user) { router.push('/auth/login'); return; }
-    setSaving(true);
-    try {
-      await api.post('/api/calculations', { furniture_type_id: selectedType.id, inputs, save: true });
-      setSaved(true);
-      loadHistory();
-    } catch { alert('Хадгалахад алдаа гарлаа'); }
-    finally { setSaving(false); }
-  };
-
+  
+const handleSave = async () => {
+  if (!selectedType || !user) { router.push('/auth/login'); return; }
+  setSaving(true);
+  try {
+    const res = await api.post('/api/calculations', {
+      furniture_type_id: selectedType.id, inputs, save: true
+    });
+    setSavedCalcId(res.data.id);  // ← НЭМЭХ
+    setSaved(true);
+    loadHistory();
+  } catch { alert('Хадгалахад алдаа гарлаа'); }
+  finally { setSaving(false); }
+};
   if (!mounted) return null;
 
   return (
@@ -415,20 +419,27 @@ export default function CalculatePage() {
                         </div>
                       </div>
 
-                      {/* Захиалах */}
                       {user && saved && (
-                        <div style={{ marginTop:16 }}>
-                          <div style={{ fontSize:12, color:'#9ca3af', marginBottom:10 }}>
-                            Тооцооллыг хадгалсны дараа захиалга өгч болно
-                          </div>
-                          <button
-                            onClick={() => router.push('/my-orders')}
-                            style={{ width:'100%', background:'linear-gradient(135deg,#1c1917,#374151)', color:'white', border:'none', borderRadius:11, padding:'13px', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit', transition:'all 0.2s', boxShadow:'0 6px 20px rgba(0,0,0,0.2)' }}
-                          >
-                            🛒 Захиалга хийх →
-                          </button>
-                        </div>
-                      )}
+  <div style={{ marginTop: 16 }}>
+    <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>
+      Тооцооллоо хадгалсан. Одоо захиалга өгч болно.
+    </div>
+    {/* ЭНЭ ТОВЧИЙГ СОЛИХ */}
+    <button
+      onClick={() => router.push(`/checkout?calc_id=${savedCalcId}`)}
+      style={{
+        width: '100%',
+        background: 'linear-gradient(135deg,#d97706,#b45309)',
+        color: 'white', border: 'none', borderRadius: 11,
+        padding: '13px', fontSize: 14, fontWeight: 700,
+        cursor: 'pointer', fontFamily: 'inherit',
+        boxShadow: '0 6px 20px rgba(217,119,6,0.3)',
+      }}
+    >
+      ✅ Захиалга хийх →
+    </button>
+  </div>
+)}
                     </>
                   )}
                 </div>

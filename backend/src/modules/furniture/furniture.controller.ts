@@ -128,3 +128,59 @@ export const updateFurnitureType = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Системийн алдаа гарлаа' });
   }
 };
+
+export const deleteFurnitureType = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+ 
+    // Холбогдсон fields болон formulas-ийг устга
+    await prisma.calc_input_fields.deleteMany({
+      where: { furniture_type_id: Number(id) },
+    });
+    await prisma.calc_formulas.deleteMany({
+      where: { furniture_type_id: Number(id) },
+    });
+ 
+    // Тавилгын төрлийг устга
+    await prisma.furniture_types.delete({
+      where: { id: Number(id) },
+    });
+ 
+    res.json({ message: 'Тавилгын төрөл амжилттай устгагдлаа' });
+  } catch (err: any) {
+    if (err.code === 'P2003') {
+      // Захиалга эсвэл тооцоололтой холбоотой бол зөвхөн идэвхгүй болго
+      await prisma.furniture_types.update({
+        where: { id: Number(req.params.id) },
+        data: { is_active: false },
+      });
+      res.json({ message: 'Тооцоололтой холбоотой тул идэвхгүй болголоо', deactivated: true });
+    } else {
+      res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+    }
+  }
+};
+ 
+export const deleteField = async (req: Request, res: Response) => {
+  try {
+    const { fieldId } = req.params;
+    await prisma.calc_input_fields.delete({
+      where: { id: Number(fieldId) },
+    });
+    res.json({ message: 'Талбар устгагдлаа' });
+  } catch {
+    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+  }
+};
+ 
+export const deleteFormula = async (req: Request, res: Response) => {
+  try {
+    const { formulaId } = req.params;
+    await prisma.calc_formulas.delete({
+      where: { id: Number(formulaId) },
+    });
+    res.json({ message: 'Томьёо устгагдлаа' });
+  } catch {
+    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+  }
+};

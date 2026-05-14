@@ -315,10 +315,10 @@ export default function MaterialsPagePublic() {
 
         <div className="nav-r">
           {/* Сагс */}
-          <button className="cart-btn" onClick={() => router.push('/cart')}>
-            🛒 Сагс
-            {count > 0 && <span className="cart-count">{count}</span>}
-          </button>
+         <button className="cart-btn" onClick={() => router.push('/cart')}>
+  🛒 Сагс
+  {count > 0 && <span className="cart-count">{count}</span>}
+</button>
 
           {authUser ? (
             <button
@@ -616,7 +616,9 @@ export default function MaterialsPagePublic() {
                 >
                   🛒 Сагсанд нэмэх
                 </button>
-                <button className="dm-cart-btn" onClick={() => router.push('/cart')}>Сагс харах</button>
+                <button className="dm-cart-btn" onClick={() => router.push('/checkout')}>
+  Захиалга хийх →
+</button>
               </div>
             </div>
           </div>
