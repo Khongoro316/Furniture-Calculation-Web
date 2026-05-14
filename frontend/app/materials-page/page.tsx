@@ -112,16 +112,45 @@ export default function MaterialsPagePublic() {
     if (u) try { setAuthUser(JSON.parse(u)); } catch {}
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      api.get('/api/materials').catch(() => ({ data: [] })),
-      api.get('/api/materials/categories').catch(() => ({ data: [] })),
-    ]).then(([m, c]) => {
-      setMaterials(m.data || []);
-      setCategories(c.data || []);
-    }).finally(() => setLoading(false));
-  }, []);
+  // useEffect дотор categories татахад:
+useEffect(() => {
+  setLoading(true);
+  Promise.all([
+    api.get('/api/materials').catch(() => ({ data: [] })),
+    api.get('/api/materials/categories').catch(() => ({ data: [] })),
+  ]).then(([m, c]) => {
+    setMaterials(m.data || []);
+
+    // ── ДАВХАРДАЛТЫГ ЗАСАХ ──
+    // Нэрээр deduplicate хийж, материал байгаа категориудыг харуулна
+    const matData = m.data || [];
+    const rawCats = c.data || [];
+
+    const uniqueCats = rawCats.reduce((acc: any[], cat: any) => {
+      if (acc.find(a => a.name === cat.name)) return acc; // давхардал хасах
+      
+      // Тухайн ангилалд хамаарах материалын тоо
+      const catMaterials = matData.filter((mat: any) =>
+        mat.material_types?.material_categories?.name === cat.name
+      );
+      
+      // Зөвхөн материал байгаа ангилалуудыг харуулна
+      if (catMaterials.length === 0) return acc;
+
+      // Дэд төрлийг давхардалгүй, материал байгаа зүйлсийг гаргана
+      const uniqueTypes = cat.material_types?.reduce((tacc: any[], t: any) => {
+        if (tacc.find(ta => ta.name === t.name)) return tacc;
+        const typeMaterials = matData.filter((mat: any) => mat.material_types?.id === t.id);
+        if (typeMaterials.length === 0) return tacc;
+        return [...tacc, t];
+      }, []) || [];
+
+      return [...acc, { ...cat, material_types: uniqueTypes }];
+    }, []);
+
+    setCategories(uniqueCats);
+  }).finally(() => setLoading(false));
+}, []);
 
   // URL query params-аар type шүүлт
   useEffect(() => {
@@ -200,14 +229,7 @@ export default function MaterialsPagePublic() {
         .cart-btn:hover{background:#374151;transform:translateY(-1px)}
         .cart-count{background:#d97706;color:white;font-size:10px;font-weight:800;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 
-        /* HERO */
-        .hero{background:linear-gradient(135deg,#1c1917,#292524);border-radius:20px;padding:36px 40px;margin:20px 0 24px;position:relative;overflow:hidden}
-        .hero::before{content:'';position:absolute;top:-60px;right:-60px;width:300px;height:300px;background:radial-gradient(circle,rgba(217,119,6,0.25),transparent 70%);border-radius:50%}
-        .hero::after{content:'';position:absolute;bottom:-80px;left:30%;width:220px;height:220px;background:radial-gradient(circle,rgba(251,191,36,0.1),transparent 70%);border-radius:50%}
-        .hero-tag{font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px}
-        .hero-title{font-size:clamp(22px,3.5vw,34px);font-weight:800;color:white;margin-bottom:8px;letter-spacing:-0.02em;position:relative}
-        .hero-sub{font-size:14px;color:rgba(255,255,255,0.55);line-height:1.65;position:relative}
-        .hero-stats{display:flex;gap:24px;margin-top:20px;position:relative}
+      
         .hs-item{display:flex;flex-direction:column;gap:3px}
         .hs-val{font-size:18px;font-weight:800;color:white}
         .hs-label{font-size:11px;color:rgba(255,255,255,0.45);font-weight:500}
@@ -226,7 +248,21 @@ export default function MaterialsPagePublic() {
         .vt-btn.on{background:#1c1917;color:white}
 
         /* CATEGORY TABS */
-        .cat-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+       .cat-tabs{
+  display:flex;gap:6px;margin-bottom:8px;
+  overflow-x:auto;flex-wrap:nowrap;
+  padding-bottom:4px;
+  scrollbar-width:none;
+}
+.cat-tabs::-webkit-scrollbar{display:none}
+
+/* type-row мөн адилхан */
+.type-row{
+  display:flex;gap:6px;margin-bottom:14px;
+  overflow-x:auto;flex-wrap:nowrap;
+  scrollbar-width:none;
+}
+.type-row::-webkit-scrollbar{display:none}
         .ct{font-size:12px;font-weight:600;padding:7px 16px;border-radius:100px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;color:#64748b;font-family:inherit;transition:all 0.15s;white-space:nowrap}
         .ct.on{background:#1c1917;color:white;border-color:#1c1917}
         .ct:hover:not(.on){border-color:#d97706;color:#d97706}
@@ -300,7 +336,7 @@ export default function MaterialsPagePublic() {
         .main{max-width:1280px;margin:0 auto;padding:0 28px 48px}
 
         @media(max-width:1100px){.prod-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}}
-        @media(max-width:768px){.hero{padding:28px 24px}.hero-stats{gap:16px}.controls{flex-wrap:wrap}.main{padding:0 16px 40px}.topnav{padding:0 16px}.prod-grid{grid-template-columns:repeat(2,1fr);gap:12px}}
+        @media(max-width:768px){.controls{flex-wrap:wrap}.main{padding:0 16px 40px}.topnav{padding:0 16px}.prod-grid{grid-template-columns:repeat(2,1fr);gap:12px}}
         @media(max-width:480px){.prod-grid{grid-template-columns:repeat(2,1fr);gap:10px}}
       `}</style>
 
@@ -342,27 +378,13 @@ export default function MaterialsPagePublic() {
 
       <div className="main">
         {/* ── HERO ── */}
-        <div className="hero">
-          <div className="hero-tag">🪵 Материалын сан</div>
-          <h1 className="hero-title">Бүх материал нэг дороос</h1>
-          <p className="hero-sub">ЛДСП, МДФ, HDF хавтан, ABS ирмэг наалт, нугас, бариул болон бусад материалын үнэ, үлдэгдлийг шалгана уу</p>
-          <div className="hero-stats">
-            <div className="hs-item">
-              <span className="hs-val">{materials.length}</span>
-              <span className="hs-label">Нийт материал</span>
-            </div>
-            <div className="hs-div" />
-            <div className="hs-item">
-              <span className="hs-val">{categories.length}</span>
-              <span className="hs-label">Ангилал</span>
-            </div>
-            <div className="hs-div" />
-            <div className="hs-item">
-              <span className="hs-val">{categories.reduce((s, c) => s + c.material_types.length, 0)}</span>
-              <span className="hs-label">Дэд төрөл</span>
-            </div>
-          </div>
-        </div>
+        <div style={{
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #e2e8f0'
+}}>
+  
+</div>
+            
 
         {/* ── CONTROLS ── */}
         <div className="controls">

@@ -338,7 +338,7 @@ export default function LandingPage() {
           <div className="h-right">
             {authUser ? (
               <>
-                <button className="nav-link" onClick={() => router.push('/profile')} style={{ fontSize: 13 }}>🛒 Сагс</button>
+                <button className="nav-link" onClick={() => router.push('/checkout')} style={{ fontSize: 13 }}>🛒 Сагс</button>
                 <div className="h-div" />
                 <div className="prof-chip" onClick={e => { e.stopPropagation(); setProfileDrop(!profileDrop); }}>
                   <div className="pc-av">{authUser.first_name?.[0]}{authUser.last_name?.[0]}</div>

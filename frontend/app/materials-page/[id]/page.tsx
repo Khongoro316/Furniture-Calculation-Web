@@ -107,7 +107,7 @@ export default function MaterialDetailPage() {
           <button className="nav-btn" onClick={() => router.push('/materials-page')}>
             ← Материалууд
           </button>
-          <button className="nav-btn" onClick={() => router.push('/cart')}>
+          <button className="nav-btn" onClick={() => router.push('/checkout')}>
             🛒 Сагс
           </button>
         </nav>
