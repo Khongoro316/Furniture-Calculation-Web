@@ -10,7 +10,7 @@ import calculationRoutes from './modules/calculation/calculation.routes';
 import orderRoutes from './modules/order/order.routes';
 import reportRoutes from './modules/report/report.routes';
 import organizationRoutes from './modules/organization/organization.routes';
-
+import { auditLog } from './middleware/auditLog';
 dotenv.config();
 
 const app = express();
@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+app.use(auditLog);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/materials', materialRoutes);

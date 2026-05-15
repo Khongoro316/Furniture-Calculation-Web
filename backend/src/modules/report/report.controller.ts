@@ -216,17 +216,46 @@ export const exportExcel = async (req: Request, res: Response) => {
   }
 };
 
+// report.controller.ts дотор getAuditLogs функцийг СОЛИХ
+
 export const getAuditLogs = async (req: Request, res: Response) => {
   try {
-    const logs = await prisma.audit_logs.findMany({
-      orderBy: { created_at: 'desc' },
-      take: 20,
-      include: {
-        users: { select: { first_name: true, last_name: true } }
+    const { from, to, limit = '200' } = req.query;
+    const db = prisma as any;
+
+    const where: any = {};
+    if (from || to) {
+      where.created_at = {};
+      if (from) where.created_at.gte = new Date(from as string);
+      if (to) {
+        const d = new Date(to as string);
+        d.setHours(23, 59, 59, 999);
+        where.created_at.lte = d;
       }
+    }
+
+    const logs = await db.audit_logs.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      take: Math.min(Number(limit) || 200, 500),
+      include: {
+        users: {
+          select: { first_name: true, last_name: true, role: true },
+        },
+      },
     });
-    res.json(logs);
-  } catch {
-    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+
+    // BigInt → Number хөрвүүлэх
+    const serialized = logs.map((log: any) => ({
+      ...log,
+      id:        Number(log.id),
+      user_id:   log.user_id ? Number(log.user_id) : null,
+      record_id: log.record_id ? Number(log.record_id) : null,
+    }));
+
+    res.json(serialized);
+  } catch (err: any) {
+    console.error('getAuditLogs алдаа:', err?.message);
+    res.json([]);
   }
 };
