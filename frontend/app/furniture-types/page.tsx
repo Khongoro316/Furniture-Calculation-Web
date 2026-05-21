@@ -197,19 +197,37 @@ export default function FurnitureTypesPage() {
   };
 const deleteType = async (e: React.MouseEvent, type: FurnitureType) => {
   e.stopPropagation();
-  if (!confirm(`"${type.name}" тавилгын төрлийг устгах уу?\n\nХолбогдох талбар, томьёо бүгд устгагдана.`)) return;
+
+  if (
+    !confirm(
+      `"${type.name}" тавилгын төрлийг устгах уу?\n\nХолбогдох талбар, томьёо бүгд устгагдана.`
+    )
+  ) {
+    return;
+  }
+
   try {
     const res = await api.delete(`/api/furniture-types/${type.id}`);
-    if (selected?.id === type.id) setSelected(null);
-    loadTypes();
-    if (res.data.deactivated) {
-      alert('Тооцоололтой холбоотой тул устгахын оронд идэвхгүй болголоо.');
+
+    if (selected?.id === type.id) {
+      setSelected(null);
+      setFields([]);
+      setFormulas([]);
     }
+
+    await loadTypes();
+
+    alert(res.data?.message || 'Тавилгын төрөл амжилттай устгагдлаа');
   } catch (err: any) {
-    alert(err.response?.data?.message || 'Устгахад алдаа гарлаа');
+    console.error('deleteType frontend error:', err);
+
+    alert(
+      err.response?.data?.message ||
+      err.message ||
+      'Устгахад алдаа гарлаа'
+    );
   }
 };
-  
   const loadDetails = async (type: FurnitureType) => {
     setSelected(type);
     setActiveTab('fields');
@@ -402,21 +420,22 @@ const deleteType = async (e: React.MouseEvent, type: FurnitureType) => {
         {t.is_active ? '●' : '○'}
       </span>
       <button
-        onClick={(e) => deleteType(e, t)}
-        title="Устгах"
-        style={{
-          width: 22, height: 22,
-          borderRadius: 5,
-          border: '1px solid #fecaca',
-          background: 'white',
-          color: '#ef4444',
-          cursor: 'pointer',
-          fontSize: 12,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'all 0.15s',
-          flexShrink: 0,
-          lineHeight: 1,
-        }}
+  onClick={(e) => deleteType(e, t)}
+  title="Устгах"
+  style={{
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    border: '1px solid #fecaca',
+    background: 'white',
+    color: '#ef4444',
+    cursor: 'pointer',
+    fontSize: 14,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }}
+
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fef2f2'; }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'white'; }}
       >
