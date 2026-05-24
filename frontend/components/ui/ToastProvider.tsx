@@ -3,6 +3,7 @@
 import {
   createContext,
   ReactNode,
+  useEffect,
   useCallback,
   useContext,
   useMemo,
@@ -39,6 +40,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setToasts((current) => current.filter((toast) => toast.id !== id));
     }, 3200);
   }, []);
+
+  useEffect(() => {
+    const originalAlert = window.alert;
+    window.alert = (message?: string) => {
+      notify(String(message || 'Алдаа гарлаа'), 'error');
+    };
+
+    return () => {
+      window.alert = originalAlert;
+    };
+  }, [notify]);
 
   const value = useMemo(() => ({ notify }), [notify]);
 

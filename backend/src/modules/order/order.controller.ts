@@ -4,6 +4,7 @@
 import { Request, Response } from 'express';
 import prismaClient from '../../prisma';
 import { AuthRequest } from '../../middleware/auth';
+import { createNotification, createRoleNotifications } from '../notification/notification.service';
 
 const prisma = prismaClient as any;
 
@@ -14,6 +15,26 @@ const generateOrderNo = () => {
   const day = String(d.getDate()).padStart(2, '0');
   const rand = Math.floor(Math.random() * 9000) + 1000;
   return `ORD-${y}${m}${day}-${rand}`;
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Хүлээгдэж байна',
+  confirmed: 'Баталгаажсан',
+  assigned: 'Хуваарилагдсан',
+  in_progress: 'Гүйцэтгэж байна',
+  done: 'Дууссан',
+  cancelled: 'Цуцлагдсан',
+};
+
+const notifyCustomerAboutStatus = async (order: any, status: string) => {
+  await createNotification({
+    userId: Number(order.user_id),
+    title: 'Захиалгын төлөв шинэчлэгдлээ',
+    message: `${order.order_no} захиалгын төлөв "${STATUS_LABELS[status] || status}" боллоо.`,
+    type: 'order_status',
+    relatedType: 'order',
+    relatedId: Number(order.id),
+  });
 };
 
 // ── Захиалгын жагсаалт (order_processor, admin, worker) ──────────────────────
@@ -223,6 +244,15 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    await createRoleNotifications({
+      role: 'order_processor',
+      title: 'Шинэ захиалга',
+      message: `${order.order_no} дугаартай шинэ захиалга орж ирлээ.`,
+      type: 'new_order',
+      relatedType: 'order',
+      relatedId: Number(order.id),
+    });
+
     res.status(201).json({ ...order });
   } catch (err) {
     console.error('❌ createOrder алдаа:', err);
@@ -254,6 +284,24 @@ export const assignOrder = async (req: AuthRequest, res: Response) => {
         changed_by: req.user!.userId,
         note:       'Ажилтанд хуваарилагдлаа',
       },
+    });
+
+    await createNotification({
+      userId: Number(worker_id),
+      title: 'Шинэ ажлын хуваарилалт',
+      message: `${prev.order_no} захиалга танд хуваарилагдлаа.`,
+      type: 'order_assigned',
+      relatedType: 'order',
+      relatedId: Number(prev.id),
+    });
+
+    await createNotification({
+      userId: Number(prev.user_id),
+      title: 'Захиалга ажилтанд хуваарилагдлаа',
+      message: `${prev.order_no} захиалгыг ажилтанд хуваариллаа.`,
+      type: 'order_assigned_customer',
+      relatedType: 'order',
+      relatedId: Number(prev.id),
     });
 
     res.json(order);
@@ -295,6 +343,72 @@ export const updateStatus = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    await notifyCustomerAboutStatus(prev, status);
+
+    if (status === 'confirmed') {
+      await createRoleNotifications({
+        role: 'admin',
+        title: 'Захиалга баталгаажлаа',
+        message: `${prev.order_no} захиалга баталгаажлаа.`,
+        type: 'order_confirmed',
+        relatedType: 'order',
+        relatedId: Number(prev.id),
+      });
+    }
+
+    if (status === 'in_progress' && prev.assigned_to) {
+      await createRoleNotifications({
+        role: 'order_processor',
+        title: 'Ажил эхэллээ',
+        message: `${prev.order_no} захиалгыг ажилтан гүйцэтгэж эхэллээ.`,
+        type: 'order_in_progress',
+        relatedType: 'order',
+        relatedId: Number(prev.id),
+      });
+    }
+
+    if (status === 'done') {
+      await createRoleNotifications({
+        role: 'order_processor',
+        title: 'Захиалга дууслаа',
+        message: `${prev.order_no} захиалгын ажил дууслаа.`,
+        type: 'order_done',
+        relatedType: 'order',
+        relatedId: Number(prev.id),
+      });
+
+      await createRoleNotifications({
+        role: 'admin',
+        title: 'Захиалга дууслаа',
+        message: `${prev.order_no} захиалгын ажил дууслаа.`,
+        type: 'order_done',
+        relatedType: 'order',
+        relatedId: Number(prev.id),
+      });
+    }
+
+    if (status === 'cancelled') {
+      if (prev.assigned_to) {
+        await createNotification({
+          userId: Number(prev.assigned_to),
+          title: 'Захиалга цуцлагдлаа',
+          message: `${prev.order_no} захиалга цуцлагдлаа.`,
+          type: 'order_cancelled',
+          relatedType: 'order',
+          relatedId: Number(prev.id),
+        });
+      }
+
+      await createRoleNotifications({
+        role: 'order_processor',
+        title: 'Захиалга цуцлагдлаа',
+        message: `${prev.order_no} захиалга цуцлагдлаа.`,
+        type: 'order_cancelled',
+        relatedType: 'order',
+        relatedId: Number(prev.id),
+      });
+    }
+
     res.json(order);
   } catch (err) {
     console.error('updateStatus:', err);
@@ -308,6 +422,11 @@ export const addPayment = async (req: AuthRequest, res: Response) => {
     const { id }              = req.params;
     const { amount, method, status = 'pending' } = req.body;
 
+    const order = await prisma.orders.findUnique({ where: { id: Number(id) } });
+    if (!order) {
+      return res.status(404).json({ message: 'Захиалга олдсонгүй' });
+    }
+
     const payment = await prisma.payments.create({
       data: {
         order_id: Number(id),
@@ -316,6 +435,30 @@ export const addPayment = async (req: AuthRequest, res: Response) => {
         status,
         paid_at:  status === 'paid' ? new Date() : null,
       },
+    });
+
+    await createRoleNotifications({
+      role: 'accountant',
+      title: status === 'paid' ? 'Төлбөр төлөгдлөө' : 'Шинэ төлбөрийн хүсэлт',
+      message:
+        status === 'paid'
+          ? `${order.order_no} захиалгын ${Number(amount).toLocaleString()}₮ төлбөр төлөгдлөө.`
+          : `${order.order_no} захиалгад ${Number(amount).toLocaleString()}₮ төлбөрийн мэдээлэл орлоо.`,
+      type: 'payment_update',
+      relatedType: 'order',
+      relatedId: Number(order.id),
+    });
+
+    await createNotification({
+      userId: Number(order.user_id),
+      title: status === 'paid' ? 'Төлбөр баталгаажлаа' : 'Төлбөрийн мэдээлэл бүртгэгдлээ',
+      message:
+        status === 'paid'
+          ? `${order.order_no} захиалгын төлбөр амжилттай баталгаажлаа.`
+          : `${order.order_no} захиалгын төлбөрийн мэдээлэл бүртгэгдлээ.`,
+      type: 'payment_update_customer',
+      relatedType: 'order',
+      relatedId: Number(order.id),
     });
 
     res.status(201).json(payment);
