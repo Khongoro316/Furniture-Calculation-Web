@@ -52,9 +52,29 @@ router.post('/categories', authenticate, rbac(['super_admin']), async (req, res)
   return ctrl.createCategory(req, res);
 });
 
+router.put('/categories/:id', authenticate, rbac(['super_admin']), async (req, res) => {
+  const ctrl = require('./material.controller');
+  return ctrl.updateCategory(req, res);
+});
+
+router.delete('/categories/:id', authenticate, rbac(['super_admin']), async (req, res) => {
+  const ctrl = require('./material.controller');
+  return ctrl.deleteCategory(req, res);
+});
+
 router.post('/types', authenticate, rbac(['super_admin']), async (req, res) => {
   const ctrl = require('./material.controller');
   return ctrl.createType(req, res);
+});
+
+router.put('/types/:id', authenticate, rbac(['super_admin']), async (req, res) => {
+  const ctrl = require('./material.controller');
+  return ctrl.updateType(req, res);
+});
+
+router.delete('/types/:id', authenticate, rbac(['super_admin']), async (req, res) => {
+  const ctrl = require('./material.controller');
+  return ctrl.deleteType(req, res);
 });
 
 router.post('/', authenticate, rbac(['accountant', 'admin', 'super_admin']),

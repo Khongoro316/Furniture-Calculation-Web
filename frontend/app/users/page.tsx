@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import api from '../../lib/axios';
 import { useAuthStore } from '../../store/authStore';
 import AppLayout from '../../components/layout/AppLayout';
+import { useToast } from '../../components/ui/ToastProvider';
 
 interface User {
   id: number;
@@ -47,6 +48,7 @@ const avatarColors = ['#d97706','#0891b2','#059669','#7c3aed','#db2777','#ea580c
 export default function UsersPage() {
   const router = useRouter();
   const { user, setAuth } = useAuthStore();
+  const { notify } = useToast();
   const [mounted, setMounted] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [tableLoading, setTableLoading] = useState(true);
@@ -85,10 +87,11 @@ export default function UsersPage() {
   const loadUsers = async () => {
   setTableLoading(true);
   try {
-    const res = await api.get('/api/auth/workers');
+    const res = await api.get('/api/auth/users');
     setUsers(res.data || []);
   } catch {
     setUsers([]);
+    notify('Хэрэглэгчдийн мэдээлэл ачаалагдсангүй', 'error');
   } finally {
     setTableLoading(false);
   }
@@ -108,7 +111,7 @@ export default function UsersPage() {
   // Ажилтан бүртгэх
   const handleCreate = async () => {
     if (!form.first_name || !form.last_name || !form.email) {
-      alert('Овог, нэр, имэйл заавал бөглөнө үү'); return;
+      notify('Овог, нэр, имэйлээ бүрэн оруулна уу', 'error'); return;
     }
     setSaving(true);
     try {
@@ -116,7 +119,7 @@ export default function UsersPage() {
       setSuccessMsg(res.data.message || 'Амжилттай бүртгэгдлээ.');
       loadUsers();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Алдаа гарлаа');
+      notify(err.response?.data?.message || 'Бүртгэх үед алдаа гарлаа', 'error');
     } finally {
       setSaving(false);
     }
@@ -131,7 +134,7 @@ export default function UsersPage() {
       setRoleModal(null);
       loadUsers();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Алдаа гарлаа');
+      notify(err.response?.data?.message || 'Эрх өөрчлөх үед алдаа гарлаа', 'error');
     } finally {
       setRoleSaving(false);
     }
@@ -143,7 +146,7 @@ export default function UsersPage() {
     await api.put(`/api/auth/users/${id}`, { is_active: !is_active });
     loadUsers();
   } catch (err: any) {
-    alert(err.response?.data?.message || 'Төлөв өөрчлөхөд алдаа гарлаа');
+    notify(err.response?.data?.message || 'Төлөв өөрчлөхөд алдаа гарлаа', 'error');
   }
 };
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../lib/axios';
 import AppLayout from '../../components/layout/AppLayout';
+import { useToast } from '../../components/ui/ToastProvider';
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Супер Админ',
@@ -30,6 +31,7 @@ const avatarColors = ['#d97706', '#059669', '#7c3aed', '#db2777', '#0891b2', '#e
 export default function DashboardPage() {
   const router = useRouter();
   const { user, setAuth } = useAuthStore();
+  const { notify } = useToast();
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState({ orders: 0, income: 0, calculations: 0, done: 0, users: 0 });
   const [recentItems, setRecentItems] = useState<any[]>([]);
@@ -71,7 +73,7 @@ export default function DashboardPage() {
           api.get('/api/reports/orders').catch(() => ({ data: { total: 0, data: [] } })),
           api.get('/api/reports/calculations').catch(() => ({ data: { total: 0 } })),
           api.get('/api/auth/workers').catch(() => ({ data: [] })),
-          api.get('/api/audit-logs').catch(() => ({ data: [] })),
+          api.get('/api/reports/audit-logs').catch(() => ({ data: [] })),
         ]);
         const orders = ordersRes.data.data || [];
         setStats({
@@ -186,12 +188,13 @@ export default function DashboardPage() {
     if (!grantUserId) return;
     setGrantLoading(true);
     try {
-      await api.put(`/api/auth/users/${grantUserId}/role`, { role: grantRole });
+      const res = await api.put(`/api/auth/users/${grantUserId}/role`, { role: grantRole });
       setShowGrantModal(false);
       setGrantUserId('');
+      notify(res.data?.message || 'Эрх амжилттай олгогдлоо', 'success');
       loadStats();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Алдаа гарлаа');
+      notify(err.response?.data?.message || 'Эрх олгох үед алдаа гарлаа', 'error');
     } finally {
       setGrantLoading(false);
     }

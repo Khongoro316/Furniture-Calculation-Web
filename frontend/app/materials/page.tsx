@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import api from '../../lib/axios';
 import { useAuthStore } from '../../store/authStore';
 import AppLayout from '../../components/layout/AppLayout';
+import { useToast } from '../../components/ui/ToastProvider';
 
 interface MaterialImage {
   id: number;
@@ -44,6 +45,7 @@ const UNITS = ['м²', 'м', 'ш', 'кг', 'л'];
 export default function MaterialsPage() {
   const router = useRouter();
   const { user, setAuth } = useAuthStore();
+  const { notify } = useToast();
   const [mounted, setMounted] = useState(false);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -150,7 +152,7 @@ export default function MaterialsPage() {
 
   const handleSave = async () => {
     if (!form.type_id || !form.code || !form.name || !form.price) {
-      alert('Төрөл, код, нэр, үнэ заавал бөглөнө үү'); return;
+      notify('Төрөл, код, нэр, үнээ бүрэн оруулна уу', 'error'); return;
     }
     setLoading(true);
     try {
@@ -179,7 +181,7 @@ export default function MaterialsPage() {
       resetForm();
       loadData();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Хадгалахад алдаа гарлаа');
+      notify(err.response?.data?.message || 'Хадгалахад алдаа гарлаа', 'error');
     } finally {
       setLoading(false);
     }
@@ -190,11 +192,15 @@ export default function MaterialsPage() {
       await api.delete(`/api/materials/${id}`);
       setDeleteId(null);
       loadData();
-    } catch { alert('Устгахад алдаа гарлаа'); }
+    } catch (err: any) {
+      notify(err.response?.data?.message || 'Устгахад алдаа гарлаа', 'error');
+    }
   };
 
   const handleDeleteImg = async (imgId: number, fromEdit = false) => {
-    await api.delete(`/api/materials/images/${imgId}`).catch(() => {});
+    const materialId = fromEdit ? editMaterial?.id : imgModal?.id;
+    if (!materialId) return;
+    const res = await api.delete(`/api/materials/${materialId}/images/${imgId}`).catch(() => null);
     if (fromEdit) {
       setEditImages(p => p.filter(i => i.id !== imgId));
     }
@@ -202,14 +208,16 @@ export default function MaterialsPage() {
       ? { ...prev, material_images: prev.material_images?.filter(i => i.id !== imgId) }
       : null
     );
+    if (res?.data?.message) notify(res.data.message, 'success');
     loadData();
   };
 
   const handleSetPrimary = async (matId: number, imgId: number) => {
-    await api.patch(`/api/materials/${matId}/images/${imgId}/primary`).catch(() => {});
+    const res = await api.put(`/api/materials/${matId}/images/${imgId}/primary`).catch(() => null);
     setEditImages(p => p.map(i => ({ ...i, is_primary: i.id === imgId })));
     loadData();
     setImgModal(null);
+    if (res?.data?.message) notify(res.data.message, 'success');
   };
 
   if (!mounted || !user) return null;

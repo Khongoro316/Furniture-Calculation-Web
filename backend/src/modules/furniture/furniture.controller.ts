@@ -41,8 +41,9 @@ export const getFormulas = async (req: Request, res: Response) => {
 export const createFurnitureType = async (req: Request, res: Response) => {
   try {
     const { name, description } = req.body;
+    const reqUser = (req as any).user;
     const type = await prisma.furniture_types.create({
-      data: { name, description, created_by: 1 }
+      data: { name, description, created_by: reqUser.userId }
     });
     res.status(201).json(type);
   } catch {

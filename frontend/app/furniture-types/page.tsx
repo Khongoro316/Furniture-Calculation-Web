@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import api from '../../lib/axios';
 import { useAuthStore } from '../../store/authStore';
 import AppLayout from '../../components/layout/AppLayout';
+import { useToast } from '../../components/ui/ToastProvider';
 
 interface FurnitureType { id: number; name: string; description: string; is_active: boolean; }
 interface InputField {
@@ -127,6 +128,7 @@ const FormulaPreview = ({ formula, fields }: { formula: any; fields: InputField[
 export default function FurnitureTypesPage() {
   const router = useRouter();
   const { user, setAuth } = useAuthStore();
+  const { notify } = useToast();
   const [mounted, setMounted] = useState(false);
   const [types, setTypes] = useState<FurnitureType[]>([]);
   const [selected, setSelected] = useState<FurnitureType | null>(null);
@@ -203,10 +205,10 @@ const deleteType = async (e: React.MouseEvent, type: FurnitureType) => {
     if (selected?.id === type.id) setSelected(null);
     loadTypes();
     if (res.data.deactivated) {
-      alert('Тооцоололтой холбоотой тул устгахын оронд идэвхгүй болголоо.');
+      notify('Тооцоололтой холбоотой тул идэвхгүй болголоо', 'info');
     }
   } catch (err: any) {
-    alert(err.response?.data?.message || 'Устгахад алдаа гарлаа');
+    notify(err.response?.data?.message || 'Устгахад алдаа гарлаа', 'error');
   }
 };
   
@@ -233,7 +235,7 @@ const deleteType = async (e: React.MouseEvent, type: FurnitureType) => {
 
   const createField = async () => {
     if (!selected || !newField.field_key || !newField.label) {
-      alert('field_key болон нэрийг бөглөнө үү'); return;
+      notify('field_key болон нэрийг бөглөнө үү', 'error'); return;
     }
     setSaving(true);
     try {
@@ -241,7 +243,7 @@ const deleteType = async (e: React.MouseEvent, type: FurnitureType) => {
       setNewField({ field_key: '', label: '', unit: 'мм', min_value: 0, max_value: 9999, default_value: 600, sort_order: fields.length });
       setShowFieldForm(false);
       loadDetails(selected);
-    } catch (err: any) { alert(err.response?.data?.message || 'Алдаа гарлаа'); }
+    } catch (err: any) { notify(err.response?.data?.message || 'Талбар нэмэхэд алдаа гарлаа', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -253,7 +255,7 @@ const deleteType = async (e: React.MouseEvent, type: FurnitureType) => {
 
   const createFormula = async () => {
     if (!selected || !newFormula.part_key || !newFormula.part_label || !newFormula.formula_width) {
-      alert('Бүх шаардлагатай талбарыг бөглөнө үү'); return;
+      notify('Бүх шаардлагатай талбарыг бөглөнө үү', 'error'); return;
     }
     setSaving(true);
     try {
@@ -261,7 +263,7 @@ const deleteType = async (e: React.MouseEvent, type: FurnitureType) => {
       setNewFormula({ part_key: '', part_label: '', formula_width: '', formula_height: '', formula_qty: '1', formula_edge: '', has_edge: false, sort_order: formulas.length });
       setShowFormulaForm(false);
       loadDetails(selected);
-    } catch (err: any) { alert(err.response?.data?.message || 'Алдаа гарлаа'); }
+    } catch (err: any) { notify(err.response?.data?.message || 'Томьёо нэмэхэд алдаа гарлаа', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -283,7 +285,7 @@ const deleteType = async (e: React.MouseEvent, type: FurnitureType) => {
       });
       setPreviewResult(res.data);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Тооцооны алдаа гарлаа');
+      notify(err.response?.data?.message || 'Тооцооны алдаа гарлаа', 'error');
     } finally { setPreviewLoading(false); }
   };
 

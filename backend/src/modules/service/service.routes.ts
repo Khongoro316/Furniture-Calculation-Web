@@ -19,6 +19,16 @@ router.post('/types', authenticate, rbac(['super_admin']), async (req, res) => {
   return controller.createServiceType(req, res);
 });
 
+router.put('/types/:id', authenticate, rbac(['super_admin']), async (req, res) => {
+  const controller = require('./service.controller');
+  return controller.updateServiceType(req, res);
+});
+
+router.delete('/types/:id', authenticate, rbac(['super_admin']), async (req, res) => {
+  const controller = require('./service.controller');
+  return controller.deleteServiceType(req, res);
+});
+
 router.post('/', authenticate, rbac(['accountant', 'admin', 'super_admin']), async (req, res) => {
   const controller = require('./service.controller');
   return controller.createService(req, res);
@@ -27,6 +37,11 @@ router.post('/', authenticate, rbac(['accountant', 'admin', 'super_admin']), asy
 router.put('/:id', authenticate, rbac(['accountant', 'admin', 'super_admin']), async (req, res) => {
   const controller = require('./service.controller');
   return controller.updateService(req, res);
+});
+
+router.delete('/:id', authenticate, rbac(['accountant', 'admin', 'super_admin']), async (req, res) => {
+  const controller = require('./service.controller');
+  return controller.deleteService(req, res);
 });
 
 export default router;

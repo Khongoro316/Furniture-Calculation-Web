@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../lib/axios';
 import { useAuthStore } from '../../store/authStore';
+import { useToast } from '../../components/ui/ToastProvider';
 
 interface Order {
   id: number;
@@ -26,6 +27,7 @@ const STATUS: Record<string, { label: string; color: string; bg: string }> = {
 export default function ProfilePage() {
   const router = useRouter();
   const { user, setAuth, logout } = useAuthStore();
+  const { notify } = useToast();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -75,7 +77,9 @@ export default function ProfilePage() {
       localStorage.setItem('user', JSON.stringify(updated));
       setAuth(updated as any, localStorage.getItem('token') || '');
       setEditMode(false);
-    } catch { alert('Алдаа гарлаа'); }
+    } catch (err: any) {
+      notify(err.response?.data?.message || 'Профайл хадгалах үед алдаа гарлаа', 'error');
+    }
     finally { setSaving(false); }
   };
 

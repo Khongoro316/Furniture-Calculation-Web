@@ -29,6 +29,11 @@ router.get('/workers', authenticate, rbac(['admin', 'super_admin', 'order_proces
   return controller.getWorkers(req, res);
 });
 
+router.get('/users', authenticate, rbac(['admin', 'super_admin']), async (req, res) => {
+  const controller = require('./auth.controller');
+  return controller.getUsers(req, res);
+});
+
 router.post('/create-worker', authenticate, rbac(['admin', 'super_admin']), async (req, res) => {
   const controller = require('./auth.controller');
   return controller.createWorker(req, res);
@@ -39,8 +44,8 @@ router.put('/users/:id/role', authenticate, rbac(['admin', 'super_admin']), asyn
   return controller.updateUserRole(req, res);
 });
 
-router.put('/users/:id', authenticate, rbac(['admin', 'super_admin']), async (req, res) => {
+router.put('/users/:id', authenticate, async (req, res) => {
   const controller = require('./auth.controller');
-  return controller.updateUserStatus(req, res);
+  return controller.updateUser(req, res);
 });
 export default router;

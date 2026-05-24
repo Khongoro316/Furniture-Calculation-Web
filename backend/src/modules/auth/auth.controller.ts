@@ -13,15 +13,33 @@ const transporter = nodemailer.createTransport({
 });
 
 const WORKER_ROLES = ['admin', 'accountant', 'order_processor', 'worker'] as const;
-const ASSIGNABLE_ROLES = ['admin', 'accountant', 'order_processor', 'worker'] as const;
+const SELF_EDITABLE_FIELDS = ['first_name', 'last_name', 'phone'] as const;
+
+const formatUser = (user: any) => ({
+  id: user.id,
+  first_name: user.first_name,
+  last_name: user.last_name,
+  email: user.email,
+  role: user.role,
+  phone: user.phone,
+  is_active: user.is_active,
+  created_at: user.created_at,
+});
+
+const buildAssignableRoles = (role: string) =>
+  role === 'super_admin' ? ['admin'] : ['accountant', 'order_processor', 'worker'];
 
 export const register = async (req: Request, res: Response) => {
   try {
     const { first_name, last_name, email, password, phone } = req.body;
 
+    if (!first_name || !last_name || !email || !password) {
+      return res.status(400).json({ message: 'Required fields are missing' });
+    }
+
     const existing = await prisma.users.findUnique({ where: { email } });
     if (existing) {
-      return res.status(400).json({ message: 'Энэ имэйл бүртгэлтэй байна' });
+      return res.status(400).json({ message: 'Email is already registered' });
     }
 
     const password_hash = await bcrypt.hash(password, 12);
@@ -29,9 +47,13 @@ export const register = async (req: Request, res: Response) => {
       data: { first_name, last_name, email, password_hash, phone },
     });
 
-    res.status(201).json({ message: 'Амжилттай бүртгэгдлээ', userId: user.id });
-  } catch {
-    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+    return res.status(201).json({
+      message: 'Registration completed',
+      user: formatUser(user),
+    });
+  } catch (error) {
+    console.error('register:', error);
+    return res.status(500).json({ message: 'System error' });
   }
 };
 
@@ -41,12 +63,16 @@ export const login = async (req: Request, res: Response) => {
 
     const user = await prisma.users.findUnique({ where: { email } });
     if (!user) {
-      return res.status(401).json({ message: 'Имэйл эсвэл нууц үг буруу байна' });
+      return res.status(401).json({ message: 'Email or password is incorrect' });
+    }
+
+    if (!user.is_active) {
+      return res.status(401).json({ message: 'This account is inactive' });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      return res.status(401).json({ message: 'Имэйл эсвэл нууц үг буруу байна' });
+      return res.status(401).json({ message: 'Email or password is incorrect' });
     }
 
     const token = jwt.sign(
@@ -55,62 +81,57 @@ export const login = async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
-    res.json({
+    return res.json({
       token,
-      user: {
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-      },
+      user: formatUser(user),
     });
-  } catch {
-    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+  } catch (error) {
+    console.error('login:', error);
+    return res.status(500).json({ message: 'System error' });
+  }
+};
+
+export const getUsers = async (req: Request, res: Response) => {
+  try {
+    const reqUser = (req as any).user;
+    if (!reqUser) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const roleFilter = reqUser.role === 'super_admin' ? ['admin'] : ['accountant', 'order_processor', 'worker', 'customer'];
+    const users = await prisma.users.findMany({
+      where: {
+        role: { in: roleFilter as any },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return res.json(users.map(formatUser));
+  } catch (error) {
+    console.error('getUsers:', error);
+    return res.status(500).json({ message: 'System error' });
   }
 };
 
 export const getWorkers = async (req: Request, res: Response) => {
   try {
     const reqUser = (req as any).user;
-
     if (!reqUser) {
-      return res.status(401).json({ message: 'Нэвтрээгүй байна' });
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const roles =
-      reqUser.role === 'super_admin'
-        ? ['admin']
-        : ['accountant', 'order_processor', 'worker'];
-
+    const roles = reqUser.role === 'super_admin' ? ['admin'] : ['accountant', 'order_processor', 'worker'];
     const users = await prisma.users.findMany({
-  where: {
-    role: reqUser.role === 'super_admin'
-      ? 'admin'
-      : {
-          in: ['accountant', 'order_processor', 'worker'] as any,
-        },
-  } as any,
-  select: {
-    id: true,
-    first_name: true,
-    last_name: true,
-    email: true,
-    phone: true,
-    role: true,
-    is_active: true,
-    created_at: true,
-  },
-  orderBy: {
-    created_at: 'desc',
-  },
-});
+      where: {
+        role: { in: roles as any },
+      },
+      orderBy: { created_at: 'desc' },
+    });
 
-    return res.json(users);
+    return res.json(users.map(formatUser));
   } catch (error) {
-    console.error('getWorkers алдаа:', error);
-    return res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+    console.error('getWorkers:', error);
+    return res.status(500).json({ message: 'System error' });
   }
 };
 
@@ -119,7 +140,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     const { email } = req.body;
     const user = await prisma.users.findUnique({ where: { email } });
     if (!user) {
-      return res.status(404).json({ message: 'Энэ имэйл бүртгэлтэй байхгүй байна' });
+      return res.status(404).json({ message: 'Email was not found' });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -134,30 +155,31 @@ export const forgotPassword = async (req: Request, res: Response) => {
       await transporter.sendMail({
         from: process.env.EMAIL_FROM,
         to: email,
-        subject: 'FurniCalc - Нууц үг сэргээх OTP',
+        subject: 'FurniCalc password reset code',
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f8fafc;border-radius:16px">
             <div style="background:linear-gradient(135deg,#d97706,#8b5cf6);border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
               <h1 style="color:white;margin:0;font-size:22px">FurniCalc</h1>
             </div>
             <div style="background:white;border-radius:12px;padding:24px">
-              <h2 style="color:#0f172a;font-size:18px;margin:0 0 8px">Нууц үг сэргээх</h2>
-              <p style="color:#64748b;font-size:14px;margin:0 0 20px">Таны нэг удаагийн нууц үг:</p>
+              <h2 style="color:#0f172a;font-size:18px;margin:0 0 8px">Password reset</h2>
+              <p style="color:#64748b;font-size:14px;margin:0 0 20px">Use this one-time code:</p>
               <div style="background:#f1f5f9;border-radius:10px;padding:20px;text-align:center;margin-bottom:20px">
                 <span style="font-size:36px;font-weight:800;color:#d97706;letter-spacing:0.15em">${otp}</span>
               </div>
-              <p style="color:#94a3b8;font-size:12px;margin:0">Энэ код 10 минутын хугацаатай.</p>
+              <p style="color:#94a3b8;font-size:12px;margin:0">The code expires in 10 minutes.</p>
             </div>
           </div>
         `,
       });
-    } catch (e) {
-      console.error('Email error:', e);
+    } catch (mailError) {
+      console.error('forgotPassword email:', mailError);
     }
 
-    res.json({ message: 'OTP код имэйл хаяг руу илгээгдлээ' });
-  } catch {
-    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+    return res.json({ message: 'OTP has been sent to email' });
+  } catch (error) {
+    console.error('forgotPassword:', error);
+    return res.status(500).json({ message: 'System error' });
   }
 };
 
@@ -166,24 +188,25 @@ export const resetPassword = async (req: Request, res: Response) => {
     const { email, otp, newPassword } = req.body;
     const user = await prisma.users.findUnique({ where: { email } });
     if (!user || !user.password_hash.startsWith('OTP:')) {
-      return res.status(400).json({ message: 'OTP хүчинтэй биш байна' });
+      return res.status(400).json({ message: 'OTP is invalid' });
     }
 
     const [, hash, ts] = user.password_hash.split(':');
     if (Date.now() - Number(ts) > 10 * 60 * 1000) {
-      return res.status(400).json({ message: 'OTP хугацаа дууссан байна' });
+      return res.status(400).json({ message: 'OTP has expired' });
     }
 
     const valid = await bcrypt.compare(otp, hash);
     if (!valid) {
-      return res.status(400).json({ message: 'OTP буруу байна' });
+      return res.status(400).json({ message: 'OTP is incorrect' });
     }
 
     const password_hash = await bcrypt.hash(newPassword, 12);
     await prisma.users.update({ where: { email }, data: { password_hash } });
-    res.json({ message: 'Нууц үг амжилттай солигдлоо' });
-  } catch {
-    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+    return res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('resetPassword:', error);
+    return res.status(500).json({ message: 'System error' });
   }
 };
 
@@ -191,35 +214,34 @@ export const updateUserRole = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
+    const reqUser = (req as any).user;
 
-    if (!ASSIGNABLE_ROLES.includes(role)) {
-      return res.status(400).json({ message: 'Зөвшөөрөгдөөгүй эрх' });
+    if (!reqUser) {
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const targetUser = await prisma.users.findUnique({
-      where: { id: Number(id) },
-    });
+    const allowedRoles = buildAssignableRoles(reqUser.role);
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: 'Role is not allowed for this account' });
+    }
 
+    const targetUser = await prisma.users.findUnique({ where: { id: Number(id) } });
     if (!targetUser) {
-      return res.status(404).json({ message: 'Хэрэглэгч олдсонгүй' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     const updated = await prisma.users.update({
       where: { id: Number(id) },
       data: { role },
-      select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        role: true,
-      },
     });
 
-    res.json({ message: 'Эрх амжилттай шинэчлэгдлээ', user: updated });
-  } catch (err) {
-    console.error('updateUserRole:', err);
-    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+    return res.json({
+      message: 'Role updated successfully',
+      user: formatUser(updated),
+    });
+  } catch (error) {
+    console.error('updateUserRole:', error);
+    return res.status(500).json({ message: 'System error' });
   }
 };
 
@@ -229,30 +251,21 @@ export const createWorker = async (req: Request, res: Response) => {
     const reqUser = (req as any).user;
 
     if (!reqUser) {
-      return res.status(401).json({ message: 'Нэвтрээгүй байна' });
+      return res.status(401).json({ message: 'Unauthorized' });
     }
-
-    const allowedRoles =
-      reqUser.role === 'super_admin'
-        ? ['admin']
-        : ['accountant', 'order_processor', 'worker'];
 
     if (!first_name || !last_name || !email) {
-      return res.status(400).json({ message: 'Овог, нэр, имэйл заавал шаардлагатай' });
+      return res.status(400).json({ message: 'First name, last name and email are required' });
     }
 
+    const allowedRoles = buildAssignableRoles(reqUser.role);
     if (!allowedRoles.includes(role)) {
-      return res.status(400).json({
-        message:
-          reqUser.role === 'super_admin'
-            ? 'Супер админ зөвхөн админ бүртгэх боломжтой'
-            : 'Админ зөвхөн нягтлан, захиалга боловсруулагч, ажилтан бүртгэх боломжтой',
-      });
+      return res.status(400).json({ message: 'Role is not allowed for this account' });
     }
 
     const existing = await prisma.users.findUnique({ where: { email } });
     if (existing) {
-      return res.status(400).json({ message: 'Энэ имэйл бүртгэлтэй байна' });
+      return res.status(400).json({ message: 'Email is already registered' });
     }
 
     const rawPassword = password || `${Math.random().toString(36).slice(-8)}A1!`;
@@ -267,112 +280,106 @@ export const createWorker = async (req: Request, res: Response) => {
         password_hash,
         role,
       },
-      select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        role: true,
-        is_active: true,
-        created_at: true,
-      },
     });
 
     try {
-      const roleLabels: Record<string, string> = {
-        admin: 'Админ',
-        accountant: 'Нягтлан',
-        order_processor: 'Захиалга боловсруулагч',
-        worker: 'Ажилтан',
-      };
-
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
-        subject: 'FurniCalc - Таны нэвтрэх мэдээлэл',
+        subject: 'FurniCalc login information',
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
             <div style="background:linear-gradient(135deg,#d97706,#b45309);border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
               <h1 style="color:white;margin:0;font-size:22px">FurniCalc</h1>
             </div>
             <h2 style="color:#0f172a">${last_name} ${first_name}</h2>
-            <p style="color:#64748b">Таны бүртгэл амжилттай үүслээ.</p>
-            <p style="color:#64748b">Эрх: <strong>${roleLabels[role] || role}</strong></p>
+            <p style="color:#64748b">Your account was created successfully.</p>
             <div style="background:#f8fafc;border-radius:10px;padding:16px;margin:20px 0">
-              <p style="margin:0 0 8px;font-size:13px;color:#64748b">Нэвтрэх имэйл:</p>
+              <p style="margin:0 0 8px;font-size:13px;color:#64748b">Email:</p>
               <strong style="color:#0f172a">${email}</strong>
-              <p style="margin:12px 0 8px;font-size:13px;color:#64748b">Нууц үг:</p>
+              <p style="margin:12px 0 8px;font-size:13px;color:#64748b">Temporary password:</p>
               <strong style="color:#d97706;font-size:18px;letter-spacing:0.05em">${rawPassword}</strong>
             </div>
           </div>
         `,
       });
-    } catch (emailErr) {
-      console.error('Email алдаа:', emailErr);
+    } catch (mailError) {
+      console.error('createWorker email:', mailError);
     }
 
-    res.status(201).json({
-      user: newUser,
-      message: `${last_name} ${first_name} амжилттай бүртгэгдлээ.`,
+    return res.status(201).json({
+      message: `${last_name} ${first_name} was created successfully`,
       tempPassword: rawPassword,
+      user: formatUser(newUser),
     });
-  } catch (err) {
-    console.error('createWorker алдаа:', err);
-    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+  } catch (error) {
+    console.error('createWorker:', error);
+    return res.status(500).json({ message: 'System error' });
   }
 };
 
-export const updateUserStatus = async (req: Request, res: Response) => {
+export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { is_active } = req.body;
     const reqUser = (req as any).user;
 
-    if (typeof is_active !== 'boolean') {
-      return res.status(400).json({ message: 'Төлөв буруу байна' });
+    if (!reqUser) {
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const targetUser = await (prisma as any).users.findUnique({
-      where: { id: Number(id) },
-    });
-
+    const targetUser = await prisma.users.findUnique({ where: { id: Number(id) } });
     if (!targetUser) {
-      return res.status(404).json({ message: 'Хэрэглэгч олдсонгүй' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    if (reqUser.role === 'super_admin' && targetUser.role !== 'admin') {
-      return res.status(403).json({
-        message: 'Супер админ зөвхөн админ хэрэглэгчийн төлөв өөрчилнө',
-      });
+    const isSelf = reqUser.userId === Number(id);
+    const canManageUsers = ['admin', 'super_admin'].includes(reqUser.role);
+    if (!isSelf && !canManageUsers) {
+      return res.status(403).json({ message: 'You do not have permission' });
     }
 
-    if (reqUser.role === 'admin' && !['accountant', 'order_processor', 'worker'].includes(targetUser.role)) {
-      return res.status(403).json({
-        message: 'Админ зөвхөн ажилтны төлөв өөрчилнө',
-      });
+    const data: Record<string, any> = {};
+    const { first_name, last_name, phone, is_active } = req.body;
+
+    if (first_name !== undefined) data.first_name = first_name;
+    if (last_name !== undefined) data.last_name = last_name;
+    if (phone !== undefined) data.phone = phone;
+
+    if (isSelf) {
+      const requestedKeys = Object.keys(req.body);
+      const hasUnsafeField = requestedKeys.some((key) => !SELF_EDITABLE_FIELDS.includes(key as (typeof SELF_EDITABLE_FIELDS)[number]));
+      if (hasUnsafeField) {
+        return res.status(403).json({ message: 'You can only edit your own profile fields' });
+      }
+    } else if (typeof is_active === 'boolean') {
+      if (reqUser.role === 'super_admin' && targetUser.role !== 'admin') {
+        return res.status(403).json({ message: 'Super admin can only manage admin accounts' });
+      }
+
+      if (reqUser.role === 'admin' && !['accountant', 'order_processor', 'worker', 'customer'].includes(targetUser.role)) {
+        return res.status(403).json({ message: 'Admin can only manage worker and customer accounts' });
+      }
+
+      data.is_active = is_active;
     }
 
-    const updated = await (prisma as any).users.update({
+    if (!Object.keys(data).length) {
+      return res.status(400).json({ message: 'No valid fields were provided' });
+    }
+
+    const updated = await prisma.users.update({
       where: { id: Number(id) },
-      data: { is_active },
-      select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        role: true,
-        phone: true,
-        is_active: true,
-        created_at: true,
-      },
+      data,
     });
 
     return res.json({
-      message: is_active ? 'Хэрэглэгч идэвхжлээ' : 'Хэрэглэгч зогсоогдлоо',
-      user: updated,
+      message: typeof is_active === 'boolean' && !isSelf
+        ? is_active ? 'User activated successfully' : 'User deactivated successfully'
+        : 'Profile updated successfully',
+      user: formatUser(updated),
     });
-  } catch (err) {
-    console.error('updateUserStatus:', err);
-    return res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+  } catch (error) {
+    console.error('updateUser:', error);
+    return res.status(500).json({ message: 'System error' });
   }
 };

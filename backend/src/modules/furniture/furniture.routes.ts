@@ -39,4 +39,19 @@ router.put('/:id', authenticate, rbac(['super_admin']), async (req, res) => {
   return ctrl.updateFurnitureType(req, res);
 });
 
+router.delete('/:id', authenticate, rbac(['super_admin']), async (req, res) => {
+  const ctrl = require('./furniture.controller');
+  return ctrl.deleteFurnitureType(req, res);
+});
+
+router.delete('/:id/fields/:fieldId', authenticate, rbac(['super_admin']), async (req, res) => {
+  const ctrl = require('./furniture.controller');
+  return ctrl.deleteField(req, res);
+});
+
+router.delete('/:id/formulas/:formulaId', authenticate, rbac(['super_admin']), async (req, res) => {
+  const ctrl = require('./furniture.controller');
+  return ctrl.deleteFormula(req, res);
+});
+
 export default router;
