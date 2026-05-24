@@ -142,7 +142,6 @@ export const getOrderById = async (req: AuthRequest, res: Response) => {
           orderBy: { created_at: 'desc' },
         },
         payments:      { orderBy: { created_at: 'desc' } },
-        organizations: { select: { id: true, name: true, phone: true } },
       },
     });
 
@@ -165,15 +164,11 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       services = [],   // [{ service_id,  qty, unit, unit_price }]
     } = req.body;
 
-    // org_id — хэрэглэгчийн байгууллага
-    const orgId = (req.user as any).org_id || 1;
-
     // 1. Захиалга үүсгэх
     const order = await prisma.orders.create({
       data: {
         order_no:       generateOrderNo(),
         user_id:        req.user!.userId,
-        org_id:         Number(orgId),
         calculation_id: calculation_id ? Number(calculation_id) : null,
         total_amount:   Number(total_amount || 0),
         note:           note || null,

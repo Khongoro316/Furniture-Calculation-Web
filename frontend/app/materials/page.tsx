@@ -87,7 +87,7 @@ export default function MaterialsPage() {
   const loadData = async () => {
     setTableLoading(true);
     const [m, c] = await Promise.all([
-      api.get('/api/materials?org_id=1').catch(() => ({ data: [] })),
+      api.get('/api/materials').catch(() => ({ data: [] })),
       api.get('/api/materials/categories').catch(() => ({ data: [] })),
     ]);
     setMaterials(m.data || []);
@@ -155,7 +155,6 @@ export default function MaterialsPage() {
     setLoading(true);
     try {
       const fd = new FormData();
-      fd.append('org_id', '1');
       fd.append('type_id', form.type_id);
       fd.append('code', form.code);
       fd.append('name', form.name);

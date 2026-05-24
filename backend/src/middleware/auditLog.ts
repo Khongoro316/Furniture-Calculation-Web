@@ -17,7 +17,6 @@ const PATH_TABLE: Record<string, string> = {
   '/api/orders':          'orders',
   '/api/materials':       'materials',
   '/api/auth':            'users',
-  '/api/organizations':   'organizations',
   '/api/calculations':    'calculations',
   '/api/services':        'services',
   '/api/furniture-types': 'furniture_types',

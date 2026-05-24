@@ -5,7 +5,6 @@ export interface AuthRequest extends Request {
   user?: {
     userId: number;
     role: string;
-    org_id?: number;
   };
 }
 
@@ -19,12 +18,11 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'secret'
-    ) as { userId: number; role: string; org_id?: number };
+    ) as { userId: number; role: string };
 
     req.user = {
       userId: decoded.userId,
       role:   decoded.role,
-      org_id: decoded.org_id,
     };
     next();
   } catch {

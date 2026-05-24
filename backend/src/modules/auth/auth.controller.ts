@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import prisma from '../../prisma';
 import nodemailer from 'nodemailer';
+import prisma from '../../prisma';
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -11,6 +11,10 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+
+const WORKER_ROLES = ['admin', 'accountant', 'order_processor', 'worker'] as const;
+const ASSIGNABLE_ROLES = ['accountant', 'order_processor', 'worker'] as const;
+
 export const register = async (req: Request, res: Response) => {
   try {
     const { first_name, last_name, email, password, phone } = req.body;
@@ -21,16 +25,16 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const password_hash = await bcrypt.hash(password, 12);
-
     const user = await prisma.users.create({
-      data: { first_name, last_name, email, password_hash, phone }
+      data: { first_name, last_name, email, password_hash, phone },
     });
 
     res.status(201).json({ message: 'Амжилттай бүртгэгдлээ', userId: user.id });
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: 'Системийн алдаа гарлаа' });
   }
 };
+
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
@@ -46,7 +50,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, role: user.role, org_id: user.org_id },  // ← org_id нэмэх
+      { userId: user.id, role: user.role },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
@@ -59,38 +63,34 @@ export const login = async (req: Request, res: Response) => {
         last_name: user.last_name,
         email: user.email,
         role: user.role,
-        org_id: user.org_id,   // ← ЭНЭ МӨРИЙГ НЭМ
         phone: user.phone,
-      }
+      },
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: 'Системийн алдаа гарлаа' });
   }
 };
+
 export const getWorkers = async (req: Request, res: Response) => {
   try {
-    const reqUser = (req as any).user;
-    
-    // org_id байхгүй бол бүх ажилтнуудыг буцаах
-    const whereClause: any = {
-      role: { in: ['admin', 'accountant', 'order_processor', 'worker'] },
-      is_active: true,
-    };
-    
-    // org_id байвал тухайн байгууллагаар шүүх
-    if (reqUser.org_id) {
-      whereClause.org_id = reqUser.org_id;
-    }
-
-    const workers = await (prisma as any).users.findMany({
-      where: whereClause,
+    const workers = await prisma.users.findMany({
+      where: {
+        role: { in: [...WORKER_ROLES] },
+        is_active: true,
+      },
       select: {
-        id: true, first_name: true, last_name: true,
-        email: true, role: true, phone: true, 
-        is_active: true, created_at: true,
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        role: true,
+        phone: true,
+        is_active: true,
+        created_at: true,
       },
       orderBy: { created_at: 'desc' },
     });
+
     res.json(workers);
   } catch (err) {
     console.error('getWorkers:', err);
@@ -105,22 +105,24 @@ export const forgotPassword = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({ message: 'Энэ имэйл бүртгэлтэй байхгүй байна' });
     }
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const hash = await bcrypt.hash(otp, 10);
-    // OTP-г password_hash дотор түр хадгална — production-д тусдаа хүснэгт хэрэгтэй
+
     await prisma.users.update({
       where: { email },
-      data: { password_hash: `OTP:${hash}:${Date.now()}` }
+      data: { password_hash: `OTP:${hash}:${Date.now()}` },
     });
+
     try {
       await transporter.sendMail({
         from: process.env.EMAIL_FROM,
         to: email,
-        subject: 'FurniCalc — Нууц үг сэргээх OTP',
+        subject: 'FurniCalc - Нууц үг сэргээх OTP',
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f8fafc;border-radius:16px">
             <div style="background:linear-gradient(135deg,#d97706,#8b5cf6);border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
-              <h1 style="color:white;margin:0;font-size:22px">🪑 FurniCalc</h1>
+              <h1 style="color:white;margin:0;font-size:22px">FurniCalc</h1>
             </div>
             <div style="background:white;border-radius:12px;padding:24px">
               <h2 style="color:#0f172a;font-size:18px;margin:0 0 8px">Нууц үг сэргээх</h2>
@@ -128,14 +130,15 @@ export const forgotPassword = async (req: Request, res: Response) => {
               <div style="background:#f1f5f9;border-radius:10px;padding:20px;text-align:center;margin-bottom:20px">
                 <span style="font-size:36px;font-weight:800;color:#d97706;letter-spacing:0.15em">${otp}</span>
               </div>
-              <p style="color:#94a3b8;font-size:12px;margin:0">Энэ код 10 минутын хугацаатай. Бусдад дамжуулахгүй байна уу.</p>
+              <p style="color:#94a3b8;font-size:12px;margin:0">Энэ код 10 минутын хугацаатай.</p>
             </div>
           </div>
-        `
+        `,
       });
     } catch (e) {
       console.error('Email error:', e);
     }
+
     res.json({ message: 'OTP код имэйл хаяг руу илгээгдлээ' });
   } catch {
     res.status(500).json({ message: 'Системийн алдаа гарлаа' });
@@ -147,16 +150,19 @@ export const resetPassword = async (req: Request, res: Response) => {
     const { email, otp, newPassword } = req.body;
     const user = await prisma.users.findUnique({ where: { email } });
     if (!user || !user.password_hash.startsWith('OTP:')) {
-      return res.status(400).json({ message: 'OTP хүчингүй байна' });
+      return res.status(400).json({ message: 'OTP хүчинтэй биш байна' });
     }
+
     const [, hash, ts] = user.password_hash.split(':');
     if (Date.now() - Number(ts) > 10 * 60 * 1000) {
       return res.status(400).json({ message: 'OTP хугацаа дууссан байна' });
     }
+
     const valid = await bcrypt.compare(otp, hash);
     if (!valid) {
       return res.status(400).json({ message: 'OTP буруу байна' });
     }
+
     const password_hash = await bcrypt.hash(newPassword, 12);
     await prisma.users.update({ where: { email }, data: { password_hash } });
     res.json({ message: 'Нууц үг амжилттай солигдлоо' });
@@ -169,26 +175,29 @@ export const updateUserRole = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
-    const reqUser = (req as any).user;
 
-    const allowedRoles = ['accountant', 'order_processor', 'worker'];
-    if (!allowedRoles.includes(role)) {
+    if (!ASSIGNABLE_ROLES.includes(role)) {
       return res.status(400).json({ message: 'Зөвшөөрөгдөөгүй эрх' });
     }
 
-    // Хэрэглэгч байгааг шалгах
-    const targetUser = await (prisma as any).users.findUnique({
+    const targetUser = await prisma.users.findUnique({
       where: { id: Number(id) },
     });
-    
+
     if (!targetUser) {
       return res.status(404).json({ message: 'Хэрэглэгч олдсонгүй' });
     }
 
-    const updated = await (prisma as any).users.update({
+    const updated = await prisma.users.update({
       where: { id: Number(id) },
       data: { role },
-      select: { id: true, first_name: true, last_name: true, email: true, role: true },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        role: true,
+      },
     });
 
     res.json({ message: 'Эрх амжилттай шинэчлэгдлээ', user: updated });
@@ -198,39 +207,28 @@ export const updateUserRole = async (req: Request, res: Response) => {
   }
 };
 
-// Админ ажилтан бүртгэх (org_id автоматаар авна)
 export const createWorker = async (req: Request, res: Response) => {
   try {
-    const reqUser = (req as any).user;
     const { first_name, last_name, email, phone, role, password } = req.body;
- 
-    console.log('📥 createWorker:', { first_name, last_name, email, role, org_id: reqUser.org_id });
- 
+
     if (!first_name || !last_name || !email) {
       return res.status(400).json({ message: 'Овог, нэр, имэйл заавал шаардлагатай' });
     }
- 
-    const allowedRoles = ['accountant', 'order_processor', 'worker'];
-    if (!allowedRoles.includes(role)) {
-      return res.status(400).json({ message: 'Зөвшөөрөгдөөгүй эрх. Зөвхөн: нягтлан, захиалга боловсруулагч, ажилтан' });
+
+    if (!ASSIGNABLE_ROLES.includes(role)) {
+      return res.status(400).json({ message: 'Зөвшөөрөгдөөгүй эрх' });
     }
- 
-    if (!reqUser.org_id) {
-      return res.status(400).json({ message: 'Таны бүртгэлд байгууллага холбогдоогүй байна' });
-    }
- 
-    const existing = await (prisma as any).users.findUnique({ where: { email } });
+
+    const existing = await prisma.users.findUnique({ where: { email } });
     if (existing) {
       return res.status(400).json({ message: 'Энэ имэйл бүртгэлтэй байна' });
     }
- 
-    // Нууц үг — өгсөн бол ашиглах, үгүй бол автомат үүсгэх
-    const rawPassword = password || Math.random().toString(36).slice(-8) + 'A1!';
+
+    const rawPassword = password || `${Math.random().toString(36).slice(-8)}A1!`;
     const password_hash = await bcrypt.hash(rawPassword, 12);
- 
-    const newUser = await (prisma as any).users.create({
+
+    const newUser = await prisma.users.create({
       data: {
-        org_id: reqUser.org_id,
         first_name,
         last_name,
         email,
@@ -239,79 +237,55 @@ export const createWorker = async (req: Request, res: Response) => {
         role,
       },
       select: {
-        id: true, first_name: true, last_name: true,
-        email: true, role: true, is_active: true, created_at: true,
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        role: true,
+        is_active: true,
+        created_at: true,
       },
     });
- 
-    // Welcome email
+
     try {
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-      });
- 
-      const ROLE_LABELS: Record<string, string> = {
-        accountant: 'Нягтлан', order_processor: 'Захиалга боловсруулагч', worker: 'Ажилтан',
+      const roleLabels: Record<string, string> = {
+        accountant: 'Нягтлан',
+        order_processor: 'Захиалга боловсруулагч',
+        worker: 'Ажилтан',
       };
- 
+
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
-        subject: 'FurniCalc — Таны нэвтрэх мэдээлэл',
+        subject: 'FurniCalc - Таны нэвтрэх мэдээлэл',
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
             <div style="background:linear-gradient(135deg,#d97706,#b45309);border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
-              <h1 style="color:white;margin:0;font-size:22px">🪑 FurniCalc</h1>
+              <h1 style="color:white;margin:0;font-size:22px">FurniCalc</h1>
             </div>
-            <h2 style="color:#0f172a">Тавтай морил, ${last_name} ${first_name}!</h2>
-            <p style="color:#64748b">Таны бүртгэл амжилттай үүсгэгдлээ.</p>
-            <p style="color:#64748b">Эрх: <strong>${ROLE_LABELS[role] || role}</strong></p>
+            <h2 style="color:#0f172a">${last_name} ${first_name}</h2>
+            <p style="color:#64748b">Таны бүртгэл амжилттай үүслээ.</p>
+            <p style="color:#64748b">Эрх: <strong>${roleLabels[role] || role}</strong></p>
             <div style="background:#f8fafc;border-radius:10px;padding:16px;margin:20px 0">
               <p style="margin:0 0 8px;font-size:13px;color:#64748b">Нэвтрэх имэйл:</p>
               <strong style="color:#0f172a">${email}</strong>
               <p style="margin:12px 0 8px;font-size:13px;color:#64748b">Нууц үг:</p>
               <strong style="color:#d97706;font-size:18px;letter-spacing:0.05em">${rawPassword}</strong>
             </div>
-            <p style="color:#94a3b8;font-size:12px">Нэвтэрсний дараа нууц үгээ солиорой.</p>
           </div>
         `,
       });
     } catch (emailErr) {
       console.error('Email алдаа:', emailErr);
     }
- 
+
     res.status(201).json({
       user: newUser,
-      message: `${last_name} ${first_name} амжилттай бүртгэгдлээ. Нэвтрэх мэдээлэл ${email} руу илгээгдлээ.`,
+      message: `${last_name} ${first_name} амжилттай бүртгэгдлээ.`,
       tempPassword: rawPassword,
     });
   } catch (err) {
-    console.error('❌ createWorker алдаа:', err);
+    console.error('createWorker алдаа:', err);
     res.status(500).json({ message: 'Системийн алдаа гарлаа' });
   }
 };
- 
-// Байгууллагын хэрэглэгчдийн жагсаалт
-export const getOrgUsers = async (req: Request, res: Response) => {
-  try {
-    const reqUser = (req as any).user;
-    const users = await (prisma as any).users.findMany({
-      where: {
-        org_id: reqUser.org_id,
-        role: { in: ['admin', 'accountant', 'order_processor', 'worker'] },
-      },
-      select: {
-        id: true, first_name: true, last_name: true,
-        email: true, role: true, phone: true,
-        is_active: true, created_at: true,
-      },
-      orderBy: { created_at: 'desc' },
-    });
-    res.json(users);
-  } catch (err) {
-    console.error('getOrgUsers:', err);
-    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
-  }
-};
- 

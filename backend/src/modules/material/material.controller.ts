@@ -88,7 +88,7 @@ export const createType = async (req: Request, res: Response) => {
 // ── Materials ─────────────────────────────────────────────────────────────────
 export const getMaterials = async (req: Request, res: Response) => {
   try {
-    const { type_id, org_id } = req.query;
+    const { type_id } = req.query;
 
     const includeImages = await prisma.material_images
       .findFirst()
@@ -99,7 +99,6 @@ export const getMaterials = async (req: Request, res: Response) => {
       where: {
         is_active: true,
         ...(type_id && { type_id: Number(type_id) }),
-        ...(org_id && { org_id: Number(org_id) }),
       },
       include: {
         material_types: { include: { material_categories: true } },
@@ -144,16 +143,15 @@ export const getMaterialById = async (req: Request, res: Response) => {
 export const createMaterial = async (req: Request, res: Response) => {
   try {
     console.log('📥 createMaterial body:', req.body);
-    const { org_id, type_id, code, name, unit, thickness, sheet_length, sheet_width, price, stock } = req.body;
+    const { type_id, code, name, unit, thickness, sheet_length, sheet_width, price, stock } = req.body;
 
     const existing = await prisma.materials.findFirst({
-      where: { org_id: Number(org_id), code },
+      where: { code },
     });
     if (existing) return res.status(400).json({ message: 'Энэ код бүртгэлтэй байна' });
 
     const material = await prisma.materials.create({
       data: {
-        org_id: Number(org_id),
         type_id: Number(type_id),
         code, name, unit,
         thickness: thickness ? Number(thickness) : null,
@@ -192,7 +190,7 @@ export const createMaterial = async (req: Request, res: Response) => {
 export const updateMaterial = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { org_id, type_id, code, name, unit, thickness, sheet_length, sheet_width, price, stock, is_active } = req.body;
+    const { type_id, code, name, unit, thickness, sheet_length, sheet_width, price, stock, is_active } = req.body;
 
     const data: any = {};
     if (type_id !== undefined) data.type_id = Number(type_id);

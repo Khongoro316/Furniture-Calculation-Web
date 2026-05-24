@@ -25,7 +25,7 @@ const ACTION_STYLE: Record<string, { bg: string; color: string; icon: string }> 
 };
 
 const TABLE_ICONS: Record<string, string> = {
-  orders: '📦', materials: '🪵', users: '👤', organizations: '🏢',
+  orders: '📦', materials: '🪵', users: '👤',
   calculations: '📐', payments: '💳', services: '🔧', furniture_types: '🪑',
 };
 

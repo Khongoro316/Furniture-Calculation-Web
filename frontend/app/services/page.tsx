@@ -52,7 +52,7 @@ export default function ServicesPage() {
     if (!form.name || !form.service_type_id) return;
     setLoading(true);
     try {
-      await api.post('/api/services', { ...form, org_id: 1, service_type_id: Number(form.service_type_id), price: Number(form.price) });
+      await api.post('/api/services', { ...form, service_type_id: Number(form.service_type_id), price: Number(form.price) });
       setShowForm(false);
       setForm({ service_type_id: '', name: '', unit: 'м', price: '', description: '' });
       loadData();

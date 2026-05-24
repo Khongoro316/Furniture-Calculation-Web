@@ -15,35 +15,19 @@ const ROLE_COLORS: Record<string, string> = {
   order_processor: '#d97706', worker: '#059669', customer: '#db2777', guest: '#6b7280',
 };
 
-// ── SIDEBAR MENU — эрхээр яг тохируулагдсан ───────────────────────────────────
 const ALL_MENUS = [
-  // Бүгд харах
-  { icon: '⊞', label: 'Хяналтын самбар', path: '/dashboard',  roles: ['super_admin','admin','accountant','order_processor','worker','customer'], section: 'Үндсэн' },
-
-  // Customer
-  { icon: '📐', label: 'Тооцоолол',       path: '/calculate',  roles: ['customer'], section: 'Үндсэн' },
-  { icon: '🛒', label: 'Миний захиалга',  path: '/my-orders',  roles: ['customer'], section: 'Үндсэн' },
-
-  // Захиалга — admin, order_processor, worker
-  { icon: '📦', label: 'Захиалга',         path: '/orders',     roles: ['admin','order_processor','worker'], section: 'Захиалга', badge: true },
-
-  // Материал & Үйлчилгээ — ЗӨВХӨН нягтлан
-  { icon: '🪵', label: 'Материал',         path: '/materials',  roles: ['accountant'], section: 'Бараа' },
-  { icon: '🔧', label: 'Үйлчилгээ',        path: '/services',   roles: ['accountant'], section: 'Бараа' },
-
-  // Тохиргоо — super_admin
-  { icon: '🪑', label: 'Тавилгын төрөл',  path: '/furniture-types',     roles: ['super_admin'], section: 'Тохиргоо' },
+  { icon: '⊞', label: 'Хяналтын самбар', path: '/dashboard', roles: ['super_admin','admin','accountant','order_processor','worker','customer'], section: 'Үндсэн' },
+  { icon: '📐', label: 'Тооцоолол', path: '/calculate', roles: ['customer'], section: 'Үндсэн' },
+  { icon: '🛒', label: 'Миний захиалга', path: '/my-orders', roles: ['customer'], section: 'Үндсэн' },
+  { icon: '📦', label: 'Захиалга', path: '/orders', roles: ['admin','order_processor','worker'], section: 'Захиалга', badge: true },
+  { icon: '🪵', label: 'Материал', path: '/materials', roles: ['accountant'], section: 'Бараа' },
+  { icon: '🔧', label: 'Үйлчилгээ', path: '/services', roles: ['accountant'], section: 'Бараа' },
+  { icon: '🪑', label: 'Тавилгын төрөл', path: '/furniture-types', roles: ['super_admin'], section: 'Тохиргоо' },
   { icon: '🗂️', label: 'Материал ангилал', path: '/material-categories', roles: ['super_admin'], section: 'Тохиргоо' },
-  { icon: '⚙️', label: 'Үйлчилгээний төрөл',     path: '/service-types',       roles: ['super_admin'], section: 'Тохиргоо' },
-  { icon: '🏢', label: 'Байгууллага',      path: '/organizations',       roles: ['super_admin'], section: 'Тохиргоо' },
-
-  // Тохиргоо — admin (өөрийн байгууллага + ажилтан)
-  { icon: '👥', label: 'Ажилтан',          path: '/users',         roles: ['admin'], section: 'Тохиргоо' },
-  { icon: '🏢', label: 'Байгууллага',      path: '/organizations', roles: ['admin'], section: 'Тохиргоо' },
-
-  // Тайлан
-  { icon: '📊', label: 'Тайлан',           path: '/reports',    roles: ['admin','super_admin','accountant','order_processor'], section: 'Тайлан' },
-  { icon: '📋', label: 'Лог',              path: '/audit-logs', roles: ['super_admin'], section: 'Тайлан' },
+  { icon: '⚙️', label: 'Үйлчилгээний төрөл', path: '/service-types', roles: ['super_admin'], section: 'Тохиргоо' },
+  { icon: '👥', label: 'Ажилтан', path: '/users', roles: ['admin'], section: 'Тохиргоо' },
+  { icon: '📊', label: 'Тайлан', path: '/reports', roles: ['admin','super_admin','accountant','order_processor'], section: 'Тайлан' },
+  { icon: '📋', label: 'Лог', path: '/audit-logs', roles: ['super_admin'], section: 'Тайлан' },
 ];
 
 interface LayoutProps {
@@ -67,7 +51,6 @@ export default function AppLayout({ children, title, action }: LayoutProps) {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Идэвхтэй menu-г олох — pathname-тай яг тохирох эсвэл эхлэх
   const isActive = (menuPath: string) => {
     if (menuPath === '/dashboard') return pathname === menuPath;
     return pathname.startsWith(menuPath);
@@ -80,15 +63,13 @@ export default function AppLayout({ children, title, action }: LayoutProps) {
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:'Plus Jakarta Sans',sans-serif!important;background:#f1f5f9}
         .app-root{display:flex;min-height:100vh}
-
-        /* SIDEBAR */
-        .sidebar{width:220px;min-width:220px;background:white;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:60;overflow-y:auto;transition:transform 0.25s ease}
+        .sidebar{width:220px;min-width:220px;background:white;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:60;overflow-y:auto;transition:transform .25s ease}
         .sb-brand{padding:18px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f1f5f9;flex-shrink:0}
         .sb-logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#d97706,#b45309);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
         .sb-name{font-size:14px;font-weight:800;color:#0f172a;line-height:1.2}
         .sb-sub{font-size:10px;color:#94a3b8}
-        .sb-sec{padding:14px 16px 4px;font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em}
-        .sb-item{display:flex;align-items:center;gap:9px;padding:9px 12px;margin:1px 8px;border-radius:8px;cursor:pointer;color:#64748b;font-size:12px;font-weight:500;transition:all 0.15s;user-select:none}
+        .sb-sec{padding:14px 16px 4px;font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em}
+        .sb-item{display:flex;align-items:center;gap:9px;padding:9px 12px;margin:1px 8px;border-radius:8px;cursor:pointer;color:#64748b;font-size:12px;font-weight:500;transition:all .15s;user-select:none}
         .sb-item:hover{background:#f8fafc;color:#0f172a}
         .sb-item.active{background:#fef3c7;color:#d97706;font-weight:700}
         .sb-badge{margin-left:auto;font-size:9px;font-weight:700;padding:2px 7px;border-radius:100px;background:#fee2e2;color:#ef4444}
@@ -97,39 +78,27 @@ export default function AppLayout({ children, title, action }: LayoutProps) {
         .sb-user-av{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0}
         .sb-user-name{font-size:11px;font-weight:700;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .sb-user-role{font-size:10px;font-weight:600}
-
-        /* OVERLAY */
-        .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:55}
+        .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:55}
         .overlay.open{display:block}
-
-        /* MAIN */
         .main-wrap{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
-
-        /* TOPNAV */
-        .topnav{height:60px;background:white;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 24px;gap:12px;position:sticky;top:0;z-index:40;box-shadow:0 1px 3px rgba(0,0,0,0.04);flex-shrink:0}
+        .topnav{height:60px;background:white;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 24px;gap:12px;position:sticky;top:0;z-index:40;box-shadow:0 1px 3px rgba(0,0,0,.04);flex-shrink:0}
         .burger{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:6px;border-radius:8px;border:none;background:none}
         .burger span{display:block;width:18px;height:2px;background:#64748b;border-radius:2px}
         .nav-title{font-size:15px;font-weight:700;color:#0f172a}
         .nav-action{margin-left:auto;display:flex;align-items:center;gap:8px}
-        .nav-btn{width:34px;height:34px;border-radius:9px;border:1px solid #e2e8f0;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:#64748b;transition:all 0.15s}
-        .nav-btn:hover{background:#f8fafc}
-        .user-pill{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:5px 12px 5px 6px;cursor:pointer;position:relative;transition:all 0.15s;flex-shrink:0}
-        .user-pill:hover{border-color:#cbd5e1}
+        .nav-btn{width:34px;height:34px;border-radius:9px;border:1px solid #e2e8f0;background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:#64748b}
+        .user-pill{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:5px 12px 5px 6px;cursor:pointer;position:relative;transition:all .15s;flex-shrink:0}
         .u-av{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0}
         .u-name{font-size:12px;font-weight:600;color:#0f172a;white-space:nowrap}
         .u-role{font-size:10px;font-weight:600;white-space:nowrap}
-        .dropdown{position:absolute;top:calc(100% + 8px);right:0;background:white;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.1);min-width:200px;overflow:hidden;z-index:200;animation:fadeIn 0.15s ease}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+        .dropdown{position:absolute;top:calc(100% + 8px);right:0;background:white;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.1);min-width:200px;overflow:hidden;z-index:200}
         .dd-head{padding:12px 16px;border-bottom:1px solid #f1f5f9;background:#fafafa}
         .dd-email{font-size:11px;color:#94a3b8;margin-top:2px}
-        .dd-item{display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;font-size:13px;color:#374151;font-weight:500;transition:background 0.1s}
+        .dd-item{display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;font-size:13px;color:#374151;font-weight:500}
         .dd-item:hover{background:#f8fafc}
         .dd-item.danger{color:#ef4444}
         .dd-item.danger:hover{background:#fef2f2}
-
-        /* PAGE */
         .page-body{padding:24px;flex:1}
-
         @media(max-width:768px){
           .sidebar{transform:translateX(-100%)}
           .sidebar.open{transform:translateX(0)}
@@ -141,10 +110,8 @@ export default function AppLayout({ children, title, action }: LayoutProps) {
         }
       `}</style>
 
-      <div className="app-root" onClick={() => { setDropOpen(false); }}>
+      <div className="app-root" onClick={() => setDropOpen(false)}>
         <div className={`overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
-
-        {/* SIDEBAR */}
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
           <div className="sb-brand">
             <div className="sb-logo">🪑</div>
@@ -168,7 +135,6 @@ export default function AppLayout({ children, title, action }: LayoutProps) {
             </div>
           ))}
 
-          {/* Sidebar footer */}
           <div className="sb-footer">
             <div className="sb-user">
               <div className="sb-user-av" style={{ background: roleColor }}>
@@ -182,7 +148,6 @@ export default function AppLayout({ children, title, action }: LayoutProps) {
           </div>
         </aside>
 
-        {/* MAIN */}
         <div className="main-wrap">
           <nav className="topnav">
             <button className="burger" onClick={e => { e.stopPropagation(); setSidebarOpen(!sidebarOpen); }}>
@@ -211,18 +176,14 @@ export default function AppLayout({ children, title, action }: LayoutProps) {
                       </div>
                     </div>
                     <div className="dd-item" onClick={() => router.push('/dashboard')}>⊞ Хяналтын самбар</div>
-                    <div className="dd-item danger" onClick={() => { logout(); router.push('/auth/login'); }}>
-                      🚪 Системээс гарах
-                    </div>
+                    <div className="dd-item danger" onClick={() => { logout(); router.push('/auth/login'); }}>🚪 Системээс гарах</div>
                   </div>
                 )}
               </div>
             </div>
           </nav>
 
-          <div className="page-body">
-            {children}
-          </div>
+          <div className="page-body">{children}</div>
         </div>
       </div>
     </>

@@ -9,7 +9,6 @@ import furnitureRoutes from './modules/furniture/furniture.routes';
 import calculationRoutes from './modules/calculation/calculation.routes';
 import orderRoutes from './modules/order/order.routes';
 import reportRoutes from './modules/report/report.routes';
-import organizationRoutes from './modules/organization/organization.routes';
 import { auditLog } from './middleware/auditLog';
 dotenv.config();
 
@@ -27,7 +26,6 @@ app.use('/api/furniture-types', furnitureRoutes);
 app.use('/api/calculations', calculationRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/organizations', organizationRoutes);
 app.get('/', (req, res) => {
   res.json({ message: 'Тавилгын тооцооны систем API ажиллаж байна' });
 });

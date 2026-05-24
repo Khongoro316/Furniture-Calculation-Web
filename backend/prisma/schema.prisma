@@ -151,7 +151,6 @@ model material_types {
 
 model materials {
   id                Int                 @id @default(autoincrement())
-  org_id            Int
   type_id           Int
   code              String              @db.VarChar(100)
   name              String              @db.VarChar(300)
@@ -167,12 +166,11 @@ model materials {
   created_at        DateTime            @default(now()) @db.DateTime(0)
   calculation_parts calculation_parts[]
   material_images   material_images[]                          // ← НЭМЭХ 2
-  organizations     organizations       @relation(fields: [org_id], references: [id], onUpdate: Restrict, map: "materials_ibfk_1")
   material_types    material_types      @relation(fields: [type_id], references: [id], onUpdate: Restrict, map: "materials_ibfk_2")
   users             users               @relation(fields: [created_by], references: [id], onUpdate: Restrict, map: "materials_ibfk_3")
   order_items       order_items[]
 
-  @@unique([org_id, code], map: "org_id")
+  @@unique([code], map: "code")
   @@index([created_by], map: "created_by")
   @@index([type_id], map: "type_id")
 }
@@ -217,7 +215,6 @@ model orders {
   order_no                         String                 @unique(map: "order_no") @db.VarChar(50)
   user_id                          Int
   calculation_id                   Int?
-  org_id                           Int
   status                           orders_status          @default(pending)
   assigned_to                      Int?
   processed_by                     Int?
@@ -228,30 +225,14 @@ model orders {
   order_status_history             order_status_history[]
   users_orders_user_idTousers      users                  @relation("orders_user_idTousers", fields: [user_id], references: [id], onUpdate: Restrict, map: "orders_ibfk_1")
   calculations                     calculations?          @relation(fields: [calculation_id], references: [id], onUpdate: Restrict, map: "orders_ibfk_2")
-  organizations                    organizations          @relation(fields: [org_id], references: [id], onUpdate: Restrict, map: "orders_ibfk_3")
   users_orders_assigned_toTousers  users?                 @relation("orders_assigned_toTousers", fields: [assigned_to], references: [id], onUpdate: Restrict, map: "orders_ibfk_4")
   users_orders_processed_byTousers users?                 @relation("orders_processed_byTousers", fields: [processed_by], references: [id], onUpdate: Restrict, map: "orders_ibfk_5")
   payments                         payments[]
 
   @@index([assigned_to], map: "assigned_to")
   @@index([calculation_id], map: "calculation_id")
-  @@index([org_id], map: "org_id")
   @@index([processed_by], map: "processed_by")
   @@index([user_id], map: "user_id")
-}
-
-model organizations {
-  id         Int         @id @default(autoincrement())
-  name       String      @db.VarChar(200)
-  phone      String?     @db.VarChar(20)
-  address    String?     @db.VarChar(500)
-  image_url  String?     @db.VarChar(500)
-  is_active  Boolean     @default(true)
-  created_at DateTime    @default(now()) @db.DateTime(0)
-  materials  materials[]
-  orders     orders[]
-  services   services[]
-  users      users[]
 }
 
 model payments {
@@ -279,7 +260,6 @@ model service_types {
 
 model services {
   id                   Int                    @id @default(autoincrement())
-  org_id               Int
   service_type_id      Int
   name                 String                 @db.VarChar(300)
   unit                 String                 @db.VarChar(20)
@@ -290,18 +270,15 @@ model services {
   created_at           DateTime               @default(now()) @db.DateTime(0)
   calculation_services calculation_services[]
   order_items          order_items[]
-  organizations        organizations          @relation(fields: [org_id], references: [id], onUpdate: Restrict, map: "services_ibfk_1")
   service_types        service_types          @relation(fields: [service_type_id], references: [id], onUpdate: Restrict, map: "services_ibfk_2")
   users                users                  @relation(fields: [created_by], references: [id], onUpdate: Restrict, map: "services_ibfk_3")
 
   @@index([created_by], map: "created_by")
-  @@index([org_id], map: "org_id")
   @@index([service_type_id], map: "service_type_id")
 }
 
 model users {
   id                                Int                    @id @default(autoincrement())
-  org_id                            Int?
   first_name                        String                 @db.VarChar(100)
   last_name                         String                 @db.VarChar(100)
   email                             String                 @unique(map: "email") @db.VarChar(200)
@@ -319,9 +296,6 @@ model users {
   orders_orders_assigned_toTousers  orders[]               @relation("orders_assigned_toTousers")
   orders_orders_processed_byTousers orders[]               @relation("orders_processed_byTousers")
   services                          services[]
-  organizations                     organizations?         @relation(fields: [org_id], references: [id], onUpdate: Restrict, map: "users_ibfk_1")
-
-  @@index([org_id], map: "org_id")
 }
 
 enum order_items_item_type {
