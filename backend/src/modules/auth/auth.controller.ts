@@ -98,7 +98,7 @@ export const getUsers = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const roleFilter = reqUser.role === 'super_admin' ? ['admin'] : ['accountant', 'order_processor', 'worker', 'customer'];
+    const roleFilter = reqUser.role === 'super_admin' ? ['admin'] : ['accountant', 'order_processor', 'worker'];
     const users = await prisma.users.findMany({
       where: {
         role: { in: roleFilter as any },
@@ -356,8 +356,8 @@ export const updateUser = async (req: Request, res: Response) => {
         return res.status(403).json({ message: 'Super admin can only manage admin accounts' });
       }
 
-      if (reqUser.role === 'admin' && !['accountant', 'order_processor', 'worker', 'customer'].includes(targetUser.role)) {
-        return res.status(403).json({ message: 'Admin can only manage worker and customer accounts' });
+      if (reqUser.role === 'admin' && !['accountant', 'order_processor', 'worker'].includes(targetUser.role)) {
+        return res.status(403).json({ message: 'Admin can only manage worker accounts' });
       }
 
       data.is_active = is_active;
