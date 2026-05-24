@@ -25,7 +25,20 @@ const ALL_MENUS = [
   { icon: '🪑', label: 'Тавилгын төрөл', path: '/furniture-types', roles: ['super_admin'], section: 'Тохиргоо' },
   { icon: '🗂️', label: 'Материал ангилал', path: '/material-categories', roles: ['super_admin'], section: 'Тохиргоо' },
   { icon: '⚙️', label: 'Үйлчилгээний төрөл', path: '/service-types', roles: ['super_admin'], section: 'Тохиргоо' },
-  { icon: '👥', label: 'Ажилтан', path: '/users', roles: ['admin'], section: 'Тохиргоо' },
+ { 
+  icon: '👤', 
+  label: 'Админ бүртгэх', 
+  path: '/users', 
+  roles: ['super_admin'], 
+  section: 'Тохиргоо' 
+},
+{ 
+  icon: '👥', 
+  label: 'Ажилтан удирдах', 
+  path: '/users', 
+  roles: ['admin'], 
+  section: 'Тохиргоо' 
+},
   { icon: '📊', label: 'Тайлан', path: '/reports', roles: ['admin','super_admin','accountant','order_processor'], section: 'Тайлан' },
   { icon: '📋', label: 'Лог', path: '/audit-logs', roles: ['super_admin'], section: 'Тайлан' },
 ];

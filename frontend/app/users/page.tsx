@@ -32,10 +32,14 @@ const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
 };
 
 // Admin олгож болох эрхүүд
+const ADMIN_ONLY_ROLES = [
+  { value: 'admin', label: 'Админ' },
+];
+
 const WORKER_ROLES = [
-  { value: 'accountant',      label: '🧾 Нягтлан' },
-  { value: 'order_processor', label: '📋 Захиалга боловсруулагч' },
-  { value: 'worker',          label: '🔨 Ажилтан' },
+  { value: 'accountant', label: 'Нягтлан' },
+  { value: 'order_processor', label: 'Захиалга боловсруулагч' },
+  { value: 'worker', label: 'Ажилтан' },
 ];
 
 const avatarColors = ['#d97706','#0891b2','#059669','#7c3aed','#db2777','#ea580c'];
@@ -53,9 +57,10 @@ export default function UsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '',
-    phone: '', role: 'worker', password: '',
+    phone: '',  role: user?.role === 'super_admin' ? 'admin' : 'worker', password: '',
   });
 
   // Эрх өөрчлөх
@@ -78,23 +83,27 @@ export default function UsersPage() {
   }, [mounted, user]);
 
   const loadUsers = async () => {
-    setTableLoading(true);
-    try {
-      // Admin өөрийн байгууллагын хэрэглэгчдийг харна
-      const endpoint = user?.role === 'admin' ? '/api/auth/org-users' : '/api/auth/users';
-      const res = await api.get(endpoint);
-      setUsers(res.data || []);
-    } catch {
-      setUsers([]);
-    } finally {
-      setTableLoading(false);
-    }
-  };
-
+  setTableLoading(true);
+  try {
+    const res = await api.get('/api/auth/workers');
+    setUsers(res.data || []);
+  } catch {
+    setUsers([]);
+  } finally {
+    setTableLoading(false);
+  }
+};
   const resetForm = () => {
-    setForm({ first_name: '', last_name: '', email: '', phone: '', role: 'worker', password: '' });
-    setSuccessMsg('');
-  };
+  setForm({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    role: user?.role === 'super_admin' ? 'admin' : 'worker',
+    password: ''
+  });
+  setSuccessMsg('');
+};
 
   // Ажилтан бүртгэх
   const handleCreate = async () => {
@@ -130,9 +139,13 @@ export default function UsersPage() {
 
   // Идэвхжүүлэх/зогсоох
   const toggleActive = async (id: number, is_active: boolean) => {
-    await api.put(`/api/auth/users/${id}`, { is_active: !is_active }).catch(() => {});
+  try {
+    await api.put(`/api/auth/users/${id}`, { is_active: !is_active });
     loadUsers();
-  };
+  } catch (err: any) {
+    alert(err.response?.data?.message || 'Төлөв өөрчлөхөд алдаа гарлаа');
+  }
+};
 
   const filtered = users.filter(u => {
     const matchRole = !filterRole || u.role === filterRole;
@@ -145,16 +158,16 @@ export default function UsersPage() {
   if (!mounted || !user) return null;
 
   const isAdmin = user.role === 'admin';
-
+  const assignableRoles = user?.role === 'super_admin' ? ADMIN_ONLY_ROLES : WORKER_ROLES;
   return (
     <AppLayout
-      title="Ажилтан удирдах"
+      title={user.role === 'super_admin' ? 'Админ удирдах' : 'Ажилтан удирдах'}
       action={
         <button
           onClick={() => { resetForm(); setShowForm(true); }}
           style={{ background: 'linear-gradient(135deg,#d97706,#b45309)', color: 'white', border: 'none', borderRadius: 10, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 2px 8px rgba(217,119,6,0.3)' }}
         >
-          + Ажилтан бүртгэх
+          {user.role === 'super_admin' ? '+ Админ бүртгэх' : '+ Ажилтан бүртгэх'}
         </button>
       }
     >
@@ -233,45 +246,85 @@ export default function UsersPage() {
       {/* СТАТИСТИК */}
       <div className="stats-row">
         <div className="stat-card">
-          <div className="stat-label">Нийт ажилтан</div>
-          <div className="stat-val">{users.length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Нягтлан</div>
-          <div className="stat-val" style={{ color: '#0891b2' }}>{users.filter(u => u.role === 'accountant').length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Зах. боловсруулагч</div>
-          <div className="stat-val" style={{ color: '#d97706' }}>{users.filter(u => u.role === 'order_processor').length}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Ажилтан</div>
-          <div className="stat-val" style={{ color: '#059669' }}>{users.filter(u => u.role === 'worker').length}</div>
+         {user.role === 'super_admin' ? (
+  <div className="stats-row admin-stats">
+    <div className="stat-card">
+      <div className="stat-label">Нийт админ</div>
+      <div className="stat-val">{users.length}</div>
+    </div>
+
+    <div className="stat-card">
+      <div className="stat-label">Идэвхтэй админ</div>
+      <div className="stat-val green">
+        {users.filter((u) => u.is_active).length}
+      </div>
+    </div>
+
+    <div className="stat-card">
+      <div className="stat-label">Идэвхгүй админ</div>
+      <div className="stat-val red">
+        {users.filter((u) => !u.is_active).length}
+      </div>
+    </div>
+  </div>
+) : (
+  <div className="stats-row">
+    <div className="stat-card">
+      <div className="stat-label">Нийт ажилтан</div>
+      <div className="stat-val">{users.length}</div>
+    </div>
+
+    <div className="stat-card">
+      <div className="stat-label">Нягтлан</div>
+      <div className="stat-val blue">
+        {users.filter((u) => u.role === 'accountant').length}
+      </div>
+    </div>
+
+    <div className="stat-card">
+      <div className="stat-label">Зах. боловсруулагч</div>
+      <div className="stat-val orange">
+        {users.filter((u) => u.role === 'order_processor').length}
+      </div>
+    </div>
+
+    <div className="stat-card">
+      <div className="stat-label">Ажилтан</div>
+      <div className="stat-val green">
+        {users.filter((u) => u.role === 'worker').length}
+      </div>
+    </div>
+  </div>
+)}
         </div>
       </div>
 
       {/* ШҮҮЛТ */}
-      <div className="filter-bar">
-        <input
-          className="search-inp"
-          placeholder="🔍  Нэр, имэйлээр хайх..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <button className={`flt-btn ${!filterRole ? 'on' : ''}`} onClick={() => setFilterRole('')}>
-          Бүгд ({users.length})
-        </button>
-        {WORKER_ROLES.map(r => (
-          <button
-            key={r.value}
-            className={`flt-btn ${filterRole === r.value ? 'on' : ''}`}
-            onClick={() => setFilterRole(filterRole === r.value ? '' : r.value)}
-          >
-            {r.label} ({users.filter(u => u.role === r.value).length})
-          </button>
-        ))}
-      </div>
+<div className="filter-bar">
+  <input
+    className="search-inp"
+    placeholder="🔍  Нэр, имэйлээр хайх..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+  />
 
+  <button
+    className={`flt-btn ${!filterRole ? 'on' : ''}`}
+    onClick={() => setFilterRole('')}
+  >
+    Бүгд ({users.length})
+  </button>
+
+  {assignableRoles.map((r) => (
+    <button
+      key={r.value}
+      className={`flt-btn ${filterRole === r.value ? 'on' : ''}`}
+      onClick={() => setFilterRole(filterRole === r.value ? '' : r.value)}
+    >
+      {r.label} ({users.filter((u) => u.role === r.value).length})
+    </button>
+  ))}
+</div>
       {/* ХҮСНЭГТ */}
       <div className="tbl">
         <div className="tbl-head">
@@ -364,7 +417,7 @@ export default function UsersPage() {
         <div className="modal-bg" onClick={() => { setShowForm(false); resetForm(); }}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-head">
-              <div className="modal-title">👤 Шинэ ажилтан бүртгэх</div>
+              <div className="modal-title">{user.role === 'super_admin' ? 'Шинэ админ бүртгэх' : 'Шинэ ажилтан бүртгэх'}</div>
               <button className="mclose" onClick={() => { setShowForm(false); resetForm(); }}>×</button>
             </div>
 
@@ -392,7 +445,7 @@ export default function UsersPage() {
                   {/* Эрх сонгох */}
                   <div className="sec-div">Олгох эрх</div>
                   <div className="role-grid">
-                    {WORKER_ROLES.map(r => (
+                    {assignableRoles.map(r => (
                       <div
                         key={r.value}
                         className={`role-card ${form.role === r.value ? 'selected' : ''}`}
@@ -505,7 +558,7 @@ export default function UsersPage() {
 
               <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 10 }}>ШИНЭ ЭРХ СОНГОХ</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {WORKER_ROLES.map(r => (
+                {assignableRoles.map(r => (
                   <div
                     key={r.value}
                     onClick={() => setNewRole(r.value)}

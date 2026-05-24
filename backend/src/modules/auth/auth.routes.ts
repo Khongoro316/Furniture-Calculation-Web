@@ -39,4 +39,8 @@ router.put('/users/:id/role', authenticate, rbac(['admin', 'super_admin']), asyn
   return controller.updateUserRole(req, res);
 });
 
+router.put('/users/:id', authenticate, rbac(['admin', 'super_admin']), async (req, res) => {
+  const controller = require('./auth.controller');
+  return controller.updateUserStatus(req, res);
+});
 export default router;

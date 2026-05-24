@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const WORKER_ROLES = ['admin', 'accountant', 'order_processor', 'worker'] as const;
-const ASSIGNABLE_ROLES = ['accountant', 'order_processor', 'worker'] as const;
+const ASSIGNABLE_ROLES = ['admin', 'accountant', 'order_processor', 'worker'] as const;
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -73,28 +73,44 @@ export const login = async (req: Request, res: Response) => {
 
 export const getWorkers = async (req: Request, res: Response) => {
   try {
-    const workers = await prisma.users.findMany({
-      where: {
-        role: { in: [...WORKER_ROLES] },
-        is_active: true,
-      },
-      select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        role: true,
-        phone: true,
-        is_active: true,
-        created_at: true,
-      },
-      orderBy: { created_at: 'desc' },
-    });
+    const reqUser = (req as any).user;
 
-    res.json(workers);
-  } catch (err) {
-    console.error('getWorkers:', err);
-    res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+    if (!reqUser) {
+      return res.status(401).json({ message: 'Нэвтрээгүй байна' });
+    }
+
+    const roles =
+      reqUser.role === 'super_admin'
+        ? ['admin']
+        : ['accountant', 'order_processor', 'worker'];
+
+    const users = await prisma.users.findMany({
+  where: {
+    role: reqUser.role === 'super_admin'
+      ? 'admin'
+      : {
+          in: ['accountant', 'order_processor', 'worker'] as any,
+        },
+  } as any,
+  select: {
+    id: true,
+    first_name: true,
+    last_name: true,
+    email: true,
+    phone: true,
+    role: true,
+    is_active: true,
+    created_at: true,
+  },
+  orderBy: {
+    created_at: 'desc',
+  },
+});
+
+    return res.json(users);
+  } catch (error) {
+    console.error('getWorkers алдаа:', error);
+    return res.status(500).json({ message: 'Системийн алдаа гарлаа' });
   }
 };
 
@@ -210,13 +226,28 @@ export const updateUserRole = async (req: Request, res: Response) => {
 export const createWorker = async (req: Request, res: Response) => {
   try {
     const { first_name, last_name, email, phone, role, password } = req.body;
+    const reqUser = (req as any).user;
+
+    if (!reqUser) {
+      return res.status(401).json({ message: 'Нэвтрээгүй байна' });
+    }
+
+    const allowedRoles =
+      reqUser.role === 'super_admin'
+        ? ['admin']
+        : ['accountant', 'order_processor', 'worker'];
 
     if (!first_name || !last_name || !email) {
       return res.status(400).json({ message: 'Овог, нэр, имэйл заавал шаардлагатай' });
     }
 
-    if (!ASSIGNABLE_ROLES.includes(role)) {
-      return res.status(400).json({ message: 'Зөвшөөрөгдөөгүй эрх' });
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({
+        message:
+          reqUser.role === 'super_admin'
+            ? 'Супер админ зөвхөн админ бүртгэх боломжтой'
+            : 'Админ зөвхөн нягтлан, захиалга боловсруулагч, ажилтан бүртгэх боломжтой',
+      });
     }
 
     const existing = await prisma.users.findUnique({ where: { email } });
@@ -249,6 +280,7 @@ export const createWorker = async (req: Request, res: Response) => {
 
     try {
       const roleLabels: Record<string, string> = {
+        admin: 'Админ',
         accountant: 'Нягтлан',
         order_processor: 'Захиалга боловсруулагч',
         worker: 'Ажилтан',
@@ -287,5 +319,60 @@ export const createWorker = async (req: Request, res: Response) => {
   } catch (err) {
     console.error('createWorker алдаа:', err);
     res.status(500).json({ message: 'Системийн алдаа гарлаа' });
+  }
+};
+
+export const updateUserStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { is_active } = req.body;
+    const reqUser = (req as any).user;
+
+    if (typeof is_active !== 'boolean') {
+      return res.status(400).json({ message: 'Төлөв буруу байна' });
+    }
+
+    const targetUser = await (prisma as any).users.findUnique({
+      where: { id: Number(id) },
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ message: 'Хэрэглэгч олдсонгүй' });
+    }
+
+    if (reqUser.role === 'super_admin' && targetUser.role !== 'admin') {
+      return res.status(403).json({
+        message: 'Супер админ зөвхөн админ хэрэглэгчийн төлөв өөрчилнө',
+      });
+    }
+
+    if (reqUser.role === 'admin' && !['accountant', 'order_processor', 'worker'].includes(targetUser.role)) {
+      return res.status(403).json({
+        message: 'Админ зөвхөн ажилтны төлөв өөрчилнө',
+      });
+    }
+
+    const updated = await (prisma as any).users.update({
+      where: { id: Number(id) },
+      data: { is_active },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        role: true,
+        phone: true,
+        is_active: true,
+        created_at: true,
+      },
+    });
+
+    return res.json({
+      message: is_active ? 'Хэрэглэгч идэвхжлээ' : 'Хэрэглэгч зогсоогдлоо',
+      user: updated,
+    });
+  } catch (err) {
+    console.error('updateUserStatus:', err);
+    return res.status(500).json({ message: 'Системийн алдаа гарлаа' });
   }
 };
